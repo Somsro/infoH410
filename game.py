@@ -9,10 +9,10 @@ if sys.platform == "win32":
     def get_arrow() -> int | None:
         """Returns 0=up 1=right 2=down 3=left or None for other keys."""
         ch = msvcrt.getch()
-        if ch == b'\xe0':           # escape prefix for arrow keys on Windows
+        if ch == b'\xe0':
             ch = msvcrt.getch()
             return {b'H': 0, b'M': 1, b'P': 2, b'K': 3}.get(ch)
-        if ch == b'\x03':           # Ctrl-C
+        if ch == b'\x03':
             raise KeyboardInterrupt
         return None
 else:
@@ -26,9 +26,9 @@ else:
         try:
             tty.setraw(fd)
             ch = sys.stdin.read(1)
-            if ch == '\x03':        # Ctrl-C
+            if ch == '\x03':
                 raise KeyboardInterrupt
-            if ch == '\x1b':        # ESC sequence
+            if ch == '\x1b':
                 ch2 = sys.stdin.read(1)
                 ch3 = sys.stdin.read(1)
                 if ch2 == '[':
@@ -41,10 +41,6 @@ else:
 # ── Display ──────────────────────────────────────────────────────────
 
 DIRECTION_NAMES = {0: "Up", 1: "Right", 2: "Down", 3: "Left"}
-
-def tile_str(v: int) -> str:
-    """Convert internal log2 value to display string (0 → '.')."""
-    return "." if v == 0 else str(1 << v)   # 1→2, 2→4, 3→8, …
 
 def render(board: Board, message: str = "") -> None:
     print("\033[2J\033[H", end="")

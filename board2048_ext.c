@@ -124,7 +124,8 @@ Board_sweep(BoardObject *self, PyObject *args)
  * Board_place_tile(self)
  * 
  * Places a new tile on a random empty cell. The value is 1 (90% chance) or 2 (10% chance).
- * Returns True if a tile was placed, False if the board is full.
+ * When the board is full, it checks if any moves are still possible.
+ * Returns False if the board is full and there are no possible moves.
  */
 static PyObject *
 Board_place_tile(BoardObject *self, PyObject *Py_UNUSED(ignored))
@@ -138,16 +139,62 @@ Board_place_tile(BoardObject *self, PyObject *Py_UNUSED(ignored))
             empty[empty_count++] = i;
     }
 
-    if (empty_count == 0)
-        return PyBool_FromLong(0);  // no empty cell, nothing placed
-
-    // Pick a random empty cell
+    // Pick a random empty cell and place tile
     int pos = empty[rand() % empty_count];
-
-    // 90% chance of 1, 10% chance of 2
     self->board.data[pos] = (rand() % 10 == 0) ? 2 : 1;
 
-    return PyBool_FromLong(1);  // tile was placed
+    // Check if board is full after placement
+    int full = 1;
+    for (int i = 0; i < BOARD_SIZE; i++) {
+        if (self->board.data[i] == 0) {
+            full = 0;
+            break;
+        }
+    }
+
+    if (!full)
+        return PyBool_FromLong(1);  // still empty cells, game continues
+
+    // Board is full — check if any move is still possible
+    // by testing all 4 directions on a copy of the board
+    for (int direction = 0; direction < 4; direction++) {
+        // Copy the board
+        BoardStruct copy;
+        memcpy(&copy, &self->board, sizeof(BoardStruct));
+
+        // Determine sweep parameters (same logic as Board_sweep)
+        int lane_start, lane_step, cell_step;
+        switch (direction) {
+            case 0: lane_start = 0;  lane_step = 1; cell_step =  4; break; // up
+            case 1: lane_start = 3;  lane_step = 4; cell_step = -1; break; // right
+            case 2: lane_start = 12; lane_step = 1; cell_step = -4; break; // down
+            case 3: lane_start = 0;  lane_step = 4; cell_step =  1; break; // left
+        }
+
+        int changed = 0;
+        for (int i = 0; i < 4 && !changed; i++) {
+            int base = lane_start + i * lane_step;
+            for (int j = 0; j < 3 && !changed; j++) {
+                int pos = base + j * cell_step;
+                for (int k = 0; k < 3 - j; k++) {
+                    int check = base + (j + k + 1) * cell_step;
+                    if (copy.data[check] == 0)
+                        continue;
+                    if (copy.data[pos] == 0 || copy.data[pos] == copy.data[check]) {
+                        changed = 1;  // a move or merge is possible
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (changed)
+            return PyBool_FromLong(1);  // at least one valid move exists
+    }
+
+    return PyBool_FromLong(0);  // no moves possible, game over
 }
 
 /**
