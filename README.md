@@ -1,4 +1,4 @@
-# 2048-C-extension-for-python
-
-Basic C extension for a 2048 board game for python.\
-Make commands in makefile.
+# To run the game with different agents, use the following commands:
+* make qlearner
+* make expectimax
+* make deeplearning

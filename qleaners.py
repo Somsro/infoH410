@@ -43,6 +43,7 @@ class Qlearner:
 
         self.state_history = []
         self.action_history = []
+        #!!!
         self.reward_history = []
 
     def reset_agent(self):
@@ -54,7 +55,6 @@ class Qlearner:
 
     def select_action(self, state):
         if np.random.rand() < self.epsilon:
-            #action = random.randrange(self.action_size) # action is an int
             action = np.random.randint(self.action_size)
         else:
             action = self.select_greedy(state)
@@ -116,36 +116,3 @@ class Qlearner:
         print("All rewards: ", self.episode_total_rewards)
         print("Epsilon:", self.epsilon) if print_epsilon else None
         print("Q-table: ", self.qtable) if print_q_table else None
-
-
-def q_learners(env_type, run):
-
-    # Number of trial runs
-    num_trials = 100
-    num_episodes = 1000
-
-    for trial in range(num_trials):
-        # Initialize environment and agents for Independent Learners (ILs)
-        
-
-        ql_agent = Qlearner(
-            action_size=4,
-            state_size=65536,
-            learning_rate=0.0,  # dynamic learning rate
-            gamma=0.98,  # does not matter for stateless one-shot game
-            epsilon=1.0,
-            epsilon_min=0.01,
-            epsilon_decay=0.99
-        )
-
-        for episode in range(num_episodes):
-            done = False
-
-            # Agents take actions
-            action = ql_agent.select_action(state)
-
-            # Step in the environment
-            observations, rewards, dones, _, infos = env.step(action)
-
-            # Update Q-tables
-            ql_agent.update(state, action, state, rewards, dones)

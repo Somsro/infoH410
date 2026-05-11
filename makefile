@@ -5,5 +5,11 @@ test:
 	python setup.py build_ext --inplace
 	python test.py
 
-play:
-	python game.py
+qlearner:
+	python game.py qlearner
+
+expectimax:
+	python game.py expectimax
+
+deeplearning:
+	python game.py deeplearning

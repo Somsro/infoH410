@@ -2,6 +2,7 @@ import sys
 import board2048_ext
 from board2048_ext import Board
 from qleaners import Qlearner
+from environment import Environment
 
 # ── Platform-specific single-keypress reading ────────────────────────
 if sys.platform == "win32":
@@ -55,40 +56,40 @@ def render(board: Board, message: str = "") -> None:
 
 # ── Game loop ────────────────────────────────────────────────────────
 
-def main() -> None:
+#The idea is to specify the agent_type that will play 2048 and each agent has its class
+def main(agent_type) -> None:
     board = Board()
     render(board, "New game! Make your first move.")
 
-    ql_agent = Qlearner(
-        action_size=4,
-        state_size=65536,
-        learning_rate=0.0,  # dynamic learning rate
-        gamma=0.98,  # does not matter for stateless one-shot game
-        epsilon=1.0,
-        epsilon_min=0.01,
-        epsilon_decay=0.99
-    )
+    if agent_type == "qlearners":
+        agent = Qlearner(
+            action_size=4,
+            state_size=4896,
+            learning_rate=0.0,  # dynamic learning rate
+            gamma=0.98,  # does not matter for stateless one-shot game
+            epsilon=1.0,
+            epsilon_min=0.01,
+            epsilon_decay=0.99
+        )
+    elif agent_type == "expectimax":
+        pass  # TODO: implement
+    elif agent_type == "deeplearning":
+        pass  # TODO: implement
+    else:
+        raise ValueError(f"Unknown agent type: {agent_type}")
 
-    done = False
-    while True:
+    env = Environment(board)
+    env.reset()
+    while not env.done:
         # Agents take actions
-        action = ql_agent.select_action(state)
+        state = env.get_state(agent_type) # get the current state for the agent
+        action = agent.select_action(state)
 
         # Step in the environment
-        moved = board.sweep(action)
-        if moved:
-            placed = board.place_tile()
-            if not placed:
-                render(board, "")
-                print("GAME OVER — board is full!")
-                ql_agent.update(previous_state, action, state, rewards, dones)
-                break
-            render(board, f"Moved: {DIRECTION_NAMES[action]}")
-        else:
-            render(board, f"No change for {DIRECTION_NAMES[action]} — try another direction.")
+        obs, reward, done, infos = env.step(action)
 
         # Update Q-tables
-        ql_agent.update(previous_state, action, state, rewards, dones)
+        agent.update(previous_state, action, state, rewards)
 
 
 
@@ -117,6 +118,11 @@ def og_main() -> None:
 
 if __name__ == "__main__":
     try:
-        main()
+        if len(sys.argv) > 1:
+            agent_type = sys.argv[1]
+            main(agent_type)
+        else:
+            print("Please specify an agent type.")
+            sys.exit(1)
     except KeyboardInterrupt:
         print("\nBye!")
