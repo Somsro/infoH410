@@ -1,6 +1,7 @@
 import sys
 import board2048_ext
 from board2048_ext import Board
+from qleaners import Qlearner
 
 # ── Platform-specific single-keypress reading ────────────────────────
 if sys.platform == "win32":
@@ -43,7 +44,6 @@ else:
 DIRECTION_NAMES = {0: "Up", 1: "Right", 2: "Down", 3: "Left"}
 
 def render(board: Board, message: str = "") -> None:
-    print("\033[2J\033[H", end="")
     representation = [2**board.to_list()[i] if board.to_list()[i] > 0 else "   ." for i in range(16)]
     for i in range(4):
         row = representation[i*4:(i+1)*4]
@@ -58,6 +58,45 @@ def render(board: Board, message: str = "") -> None:
 def main() -> None:
     board = Board()
     render(board, "New game! Make your first move.")
+
+    ql_agent = Qlearner(
+        action_size=4,
+        state_size=65536,
+        learning_rate=0.0,  # dynamic learning rate
+        gamma=0.98,  # does not matter for stateless one-shot game
+        epsilon=1.0,
+        epsilon_min=0.01,
+        epsilon_decay=0.99
+    )
+
+    done = False
+    while True:
+        # Agents take actions
+        action = ql_agent.select_action(state)
+
+        # Step in the environment
+        moved = board.sweep(action)
+        if moved:
+            placed = board.place_tile()
+            if not placed:
+                render(board, "")
+                print("GAME OVER — board is full!")
+                ql_agent.update(previous_state, action, state, rewards, dones)
+                break
+            render(board, f"Moved: {DIRECTION_NAMES[action]}")
+        else:
+            render(board, f"No change for {DIRECTION_NAMES[action]} — try another direction.")
+
+        # Update Q-tables
+        ql_agent.update(previous_state, action, state, rewards, dones)
+
+
+
+#Je mets ici l'ancien main avant mes changement de qlearners
+def og_main() -> None:
+    board = Board()
+    render(board, "New game! Make your first move.")
+
 
     while True:
         direction = get_arrow()
@@ -75,7 +114,6 @@ def main() -> None:
             render(board, f"Moved: {DIRECTION_NAMES[direction]}")
         else:
             render(board, f"No change for {DIRECTION_NAMES[direction]} — try another direction.")
-
 
 if __name__ == "__main__":
     try:
