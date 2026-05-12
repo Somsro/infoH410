@@ -62,21 +62,17 @@ Board_init(BoardObject *self, PyObject *args, PyObject *kwds)
 }
 
 /**
- * Board_sweep(self, direction)
- * 
- * Sweeps the board in the given direction (0=up, 1=right, 2=down, 3=left).
- * Returns True if any tile moved or merged, False if the board was unchanged.
+ * Board_sweep_struct(board, direction)
+ *
+ * Applies the sweep logic to a raw BoardStruct.
+ * Returns 1 if the board changed, 0 if it stayed the same, and -1 on invalid direction.
  */
-static PyObject *
-Board_sweep(BoardObject *self, PyObject *args)
+static int
+Board_sweep_struct(BoardStruct *board, int direction)
 {
-    int direction;
-    if (!PyArg_ParseTuple(args, "i", &direction))
-        return NULL;
-
     if (direction < 0 || direction > 3) {
         PyErr_SetString(PyExc_ValueError, "Direction must be 0 (up), 1 (right), 2 (down), or 3 (left)");
-        return NULL;
+        return -1;
     }
 
     int lane_start, lane_step, cell_step;
@@ -98,16 +94,16 @@ Board_sweep(BoardObject *self, PyObject *args)
 
             for (int k = 0; k < 3 - j; k++) {
                 int check = base + (j + k + 1) * cell_step;
-                if (self->board.data[check] == 0)
+                if (board->data[check] == 0)
                     continue;
 
-                if (self->board.data[pos] == 0) {
-                    self->board.data[pos] = self->board.data[check];
-                    self->board.data[check] = 0;
+                if (board->data[pos] == 0) {
+                    board->data[pos] = board->data[check];
+                    board->data[check] = 0;
                     changed = 1;
-                } else if (self->board.data[pos] == self->board.data[check]) {
-                    self->board.data[pos]++;
-                    self->board.data[check] = 0;
+                } else if (board->data[pos] == board->data[check]) {
+                    board->data[pos]++;
+                    board->data[check] = 0;
                     changed = 1;
                     break;
                 } else {
@@ -116,6 +112,48 @@ Board_sweep(BoardObject *self, PyObject *args)
             }
         }
     }
+
+    return changed;
+}
+
+/**
+ * Board_sweep(self, direction)
+ * 
+ * Sweeps the board in the given direction (0=up, 1=right, 2=down, 3=left).
+ * Returns True if any tile moved or merged, False if the board was unchanged.
+ */
+static PyObject *
+Board_sweep(BoardObject *self, PyObject *args)
+{
+    int direction;
+    if (!PyArg_ParseTuple(args, "i", &direction))
+        return NULL;
+
+    int changed = Board_sweep_struct(&self->board, direction);
+    if (changed < 0)
+        return NULL;
+
+    return PyBool_FromLong(changed);
+}
+
+/**
+ * Board_is_move_valid(self, direction)
+ *
+ * Returns True if calling sweep(direction) would change the board.
+ */
+static PyObject *
+Board_is_move_valid(BoardObject *self, PyObject *args)
+{
+    int direction;
+    if (!PyArg_ParseTuple(args, "i", &direction))
+        return NULL;
+
+    BoardStruct copy;
+    memcpy(&copy, &self->board, sizeof(BoardStruct));
+
+    int changed = Board_sweep_struct(&copy, direction);
+    if (changed < 0)
+        return NULL;
 
     return PyBool_FromLong(changed);
 }
@@ -255,6 +293,13 @@ static PyMethodDef Board_methods[] = {
         "Place a new tile on a random empty cell.\n"
         "Value is 1 (90% chance) or 2 (10% chance).\n"
         "Returns True if a tile was placed, False if the board is full."
+    },
+    {
+        "is_move_valid",
+        (PyCFunction)Board_is_move_valid,
+        METH_VARARGS,
+        "is_move_valid(direction)\n\n"
+        "Return True if sweep(direction) would change the board."
     },
     {
         "to_list",

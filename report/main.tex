@@ -1,0 +1,45 @@
+\documentclass[12pt, a4paper, oneside]{ULBreport}
+\usepackage{helvet} 
+%Pour arial : mettre le compilateur en LuaLaTeX et rajouter
+
+%\usepackage{fontspec}
+%\setmainfont{Arial}
+
+%\usepackage{uarial}
+
+%Fin Pour Arial
+
+\renewcommand{\familydefault}{\sfdefault} % écrit en sans serif
+
+%Pour insérer des images : mettre dans Pictures
+\usepackage{graphicx}
+\graphicspath{ {./Pictures/} }
+
+\sceau{Pictures/sceauULB.jpg}
+
+\addbibresource{biblio.bib}
+
+\begin{document}
+
+\titleULB{
+	title={Techniques of AI},
+	studies={2025-2026},
+	course={INFO-H410},
+	author={Robin Marchand\\Author2\\Author3},
+	date={May 2026},
+	teacher={Sacharidis Dimitri},
+	logo={Pictures/logo-polytech.jpg},
+	manyAuthor
+}
+
+\chapter{Introduction}
+
+\include{qlearners}
+
+
+
+%Bibliography
+%\nocite{*}
+%\printbibliography[type=article,title=Articles]
+
+\end{document}

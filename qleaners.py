@@ -1,4 +1,3 @@
-from board2048_ext import Board
 import numpy as np
 
 class Qlearner:
@@ -38,37 +37,36 @@ class Qlearner:
 
         # tracking rewards/progress:
         self.rewards_this_episode = []  # during an episode, save every time step's reward
-        self.episode_total_rewards = []  # each episode, sum the rewards, possibly with a discount factor
-        self.average_episode_total_rewards = []  # the average (discounted) episode reward to indicate progress
+        self.episode_final_scores = []  # keep track of the final score for each episodes (episode_final_scores[i] = final score of episode i)
+        self.average_episode_final_scores = []  # the average (discounted) episode final scores to indicate progress
 
         self.state_history = []
         self.action_history = []
-        #!!!
-        self.reward_history = []
 
     def reset_agent(self):
         self.qtable = np.zeros((self.state_size, self.action_size))
 
-    def select_greedy(self, state):
-        # np.argmax(self.qtable[state]) will select first entry if two or more Q-values are equal, but we want true randomness:
-        return np.random.choice(np.flatnonzero(np.isclose(self.qtable[state], self.qtable[state].max()))) #select_greedy(state) -> action
+    def select_greedy(self, state, valid_moves):
+        # np.argmax(self.qtable[state]) will select first entry if two or more Q-values are equal, but we want true randomness so we select randomly among the best Q-values:
+        q_vals = self.qtable[state, valid_moves] # get the Q-values of the valid moves
+        best_q_vals = np.flatnonzero(np.isclose(q_vals, q_vals.max())) # get the indice(s) of the valid moves that have the best Q-value
+        return np.random.choice(best_q_vals) #select_greedy(state) -> action
 
-    def select_action(self, state):
+    def select_action(self, state, valid_moves):
         if np.random.rand() < self.epsilon:
-            action = np.random.randint(self.action_size)
+            action = np.random.choice(valid_moves) #explore: select a random valid move
         else:
-            action = self.select_greedy(state)
+            action = self.select_greedy(state, valid_moves) #exploit: select the best valid move according to the Q-table
+
         self.state_history.append(state)
         self.action_history.append(action)
-        #!!!
-        # print(self.action_history)
         return action
 
     def update_epsilon(self):
         self.epsilon *= self.epsilon_decay
         self.epsilon = max(self.epsilon_min, self.epsilon)
 
-    def update(self, state, action, new_state, reward, done, update_epsilon=True):
+    def update(self, state, action, new_state, reward, score, done, next_valid_actions, update_epsilon=True):
 
         if not self.dynamic_lr:
             lr = self.learning_rate
@@ -76,43 +74,41 @@ class Qlearner:
             self.action_counter[state, action] += 1
             lr = 1 / self.action_counter[state, action]
 
-        # Q(s,a) <-- Q(s,a) + learning_rate [R + gamma * max_a' Q(s',a') - Q(s,a)]
-        # For our stateless, one-shot game, the update simplifies to: Q(s,a) <-- Q(s,a) + lr * [R - Q(s,a)]
-        self.qtable[state, action] += lr * (reward + (not done) * self.gamma * np.max(self.qtable[new_state]) - self.qtable[state, action])
+        #Update Q-table:
+        target = reward
+        if not done and next_valid_actions:
+            target += self.gamma * np.max(self.qtable[new_state, next_valid_actions])
+
+        # Q(s,a) <-- Q(s,a) + learning_rate [R + gamma * max_a' Q(s',a') - Q(s,a)]  Note : max_a' Q(s',a') = best next possible action so we need to compare on valid actions
+        self.qtable[state, action] += lr * (target - self.qtable[state, action])
 
         self.rewards_this_episode.append(reward)
-        #!!!
-        self.reward_history.append(reward)
-        #print("state ", state)
         
         if done:
-            # track total reward:
-            episode_reward = self._calculate_episode_reward(self.rewards_this_episode, discount=False)
-            self.episode_total_rewards.append(episode_reward)
+            # track total score:
+            self.episode_final_scores.append(score) #We track the total score for each episode (episode_final_scores[i] = final score of episode i)
 
-            k = len(self.average_episode_total_rewards) + 1  # amount of episodes that have passed
-            self._calculate_average_episode_reward(k, episode_reward)
+            episodes_count = len(self.average_episode_final_scores) + 1  # amount of episodes that have passed
+            self._calculate_average_episode_score(episodes_count, score)
+
+            self.rewards_this_episode = [] #we reset here since if update_epsilon -> new episode
+            self.state_history = []
+            self.action_history = []
 
             if update_epsilon:
                 self.update_epsilon()
-                self.rewards_this_episode = [] #we reset here since if update_epsilon -> new episode
 
-            
 
-    def _calculate_episode_reward(self, rewards_this_episode, discount=False):
-        if discount:
-            return sum([(self.gamma**i) * reward for i, reward in enumerate(rewards_this_episode)])
-        return sum(rewards_this_episode)
 
-    def _calculate_average_episode_reward(self, k, episode_reward):
+    def _calculate_average_episode_score(self, k, score):
         if k > 1:  # running average is more efficient:
-            average_episode_reward = (1 - 1 / k) * self.average_episode_total_rewards[-1] + episode_reward / k
+            average_episode_score = (1 - 1 / k) * self.average_episode_final_scores[-1] + score / k
         else:
-            average_episode_reward = episode_reward
-        self.average_episode_total_rewards.append(average_episode_reward)
+            average_episode_score = score
+        self.average_episode_final_scores.append(average_episode_score)
 
-    def print_rewards(self, episode, print_epsilon=True, print_q_table=True):
-        print("Total (discounted) reward of this episode: ", self.episode_total_rewards[episode])
-        print("All rewards: ", self.episode_total_rewards)
+    def print_scores(self, episode, print_epsilon=True, print_q_table=True):
+        print("Total score of this episode: ", self.episode_final_scores[episode])
+        print("All scores: ", self.episode_final_scores)
         print("Epsilon:", self.epsilon) if print_epsilon else None
         print("Q-table: ", self.qtable) if print_q_table else None

@@ -1,8 +1,7 @@
 import sys
-import board2048_ext
-from board2048_ext import Board
-from qleaners import Qlearner
 from environment import Environment
+from qleaners import Qlearner
+
 
 # ── Platform-specific single-keypress reading ────────────────────────
 if sys.platform == "win32":
@@ -44,24 +43,17 @@ else:
 
 DIRECTION_NAMES = {0: "Up", 1: "Right", 2: "Down", 3: "Left"}
 
-def render(board: Board, message: str = "") -> None:
-    representation = [2**board.to_list()[i] if board.to_list()[i] > 0 else "   ." for i in range(16)]
-    for i in range(4):
-        row = representation[i*4:(i+1)*4]
-        print(' '.join(f"{v:4}" for v in row))
-    if message:
-        print(message)
-    print("Arrow keys to move  •  Ctrl-C to quit")
+# ── Utility functions ────────────────────────────────────────────────
+
 
 
 # ── Game loop ────────────────────────────────────────────────────────
 
 #The idea is to specify the agent_type that will play 2048 and each agent has its class
 def main(agent_type) -> None:
-    board = Board()
-    render(board, "New game! Make your first move.")
 
-    if agent_type == "qlearners":
+
+    if agent_type == "qlearner":
         agent = Qlearner(
             action_size=4,
             state_size=4896,
@@ -77,44 +69,64 @@ def main(agent_type) -> None:
         pass  # TODO: implement
     else:
         raise ValueError(f"Unknown agent type: {agent_type}")
+    
+    env = Environment()
 
-    env = Environment(board)
-    env.reset()
-    while not env.done:
-        # Agents take actions
-        state = env.get_state(agent_type) # get the current state for the agent
-        action = agent.select_action(state)
+    for i in range(2): # play 2 games to test
+        print(f"Game {i+1} starting...")
+        done = False
+        env.reset()
 
-        # Step in the environment
-        obs, reward, done, infos = env.step(action)
+        while not done: #done is set to True in env.step() when the game is over
 
-        # Update Q-tables
-        agent.update(previous_state, action, state, rewards)
+            state = env.get_state(agent_type) # get the current state for the agent
+
+            valid_moves = env.get_valid_actions() # get the valid moves for the current state (will always return at least 1 since done would be True otherwise)
+
+            action = agent.select_action(state, valid_moves) # Agents take actions based on the state and valid moves
+
+            # Step in the environment
+            obs, reward, done, score = env.step(action) #reward = score difference after taking the action.
+
+            new_state = env.get_state(agent_type) # get the new state after taking the action
+            next_valid_actions = env.get_valid_actions() # get the valid moves for the new state (will always return at least 1 since done would be True otherwise)
+
+            # Agent learns
+            agent.update(state, action, new_state, reward, score, done, next_valid_actions)
+
+            # Render the new state of the game
+            if (not done) :
+                env.render(f"Action: {DIRECTION_NAMES[action]}, Actual Score: {score}")
+            else:
+                env.render(f"Game Over! Final Score: {score}")
+
+        print(f"Game {i+1} ended with score: {score}")
+        agent.print_scores(i) # print the score of the episode and the epsilon value to see the progress of the agent
 
 
 
 #Je mets ici l'ancien main avant mes changement de qlearners
-def og_main() -> None:
-    board = Board()
-    render(board, "New game! Make your first move.")
+# def og_main() -> None:
+#     board = Board()
+#     render(board, "New game! Make your first move.")
 
 
-    while True:
-        direction = get_arrow()
-        if direction is None:
-            continue
+#     while True:
+#         direction = get_arrow()
+#         if direction is None:
+#             continue
 
-        moved = board.sweep(direction)
+#         moved = board.sweep(direction)
 
-        if moved:
-            placed = board.place_tile()
-            if not placed:
-                render(board, "")
-                print("GAME OVER — board is full!")
-                break
-            render(board, f"Moved: {DIRECTION_NAMES[direction]}")
-        else:
-            render(board, f"No change for {DIRECTION_NAMES[direction]} — try another direction.")
+#         if moved:
+#             placed = board.place_tile()
+#             if not placed:
+#                 render(board, "")
+#                 print("GAME OVER — board is full!")
+#                 break
+#             render(board, f"Moved: {DIRECTION_NAMES[direction]}")
+#         else:
+#             render(board, f"No change for {DIRECTION_NAMES[direction]} — try another direction.")
 
 if __name__ == "__main__":
     try:
