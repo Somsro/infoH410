@@ -1,7 +1,16 @@
 import sys
 from environment import Environment
 from qleaners import Qlearner
+import matplotlib.pyplot as plt
 
+#Training hyperparameters
+NUM_EPISODES = 10000
+
+
+# Hyperparameters for Q-learner
+EPS_MIN = 0.01
+EPS_DECAY = 0.9995
+STATE_SIZE = 2240 #16 (empty_count) * 14 (max_log_tile) * 5 (valid_moves_count) * 2 (is_max_corner)
 
 # ── Platform-specific single-keypress reading ────────────────────────
 if sys.platform == "win32":
@@ -49,33 +58,23 @@ DIRECTION_NAMES = {0: "Up", 1: "Right", 2: "Down", 3: "Left"}
 
 # ── Game loop ────────────────────────────────────────────────────────
 
-#The idea is to specify the agent_type that will play 2048 and each agent has its class
-def main(agent_type) -> None:
-
-
-    if agent_type == "qlearner":
-        agent = Qlearner(
+def train_qlearner(nb_episodes) -> Qlearner:
+    agent = Qlearner(
             action_size=4,
-            state_size=4896,
+            state_size=STATE_SIZE,
             learning_rate=0.0,  # dynamic learning rate
             gamma=0.98,  # does not matter for stateless one-shot game
             epsilon=1.0,
-            epsilon_min=0.01,
-            epsilon_decay=0.99
+            epsilon_min=EPS_MIN,
+            epsilon_decay=EPS_DECAY,
         )
-    elif agent_type == "expectimax":
-        pass  # TODO: implement
-    elif agent_type == "deeplearning":
-        pass  # TODO: implement
-    else:
-        raise ValueError(f"Unknown agent type: {agent_type}")
     
     env = Environment()
 
-    for i in range(2): # play 2 games to test
+    for i in range(nb_episodes): # train for nb_episodes episodes
         print(f"Game {i+1} starting...")
         done = False
-        env.reset()
+        env.reset(options=False)
 
         while not done: #done is set to True in env.step() when the game is over
 
@@ -86,7 +85,7 @@ def main(agent_type) -> None:
             action = agent.select_action(state, valid_moves) # Agents take actions based on the state and valid moves
 
             # Step in the environment
-            obs, reward, done, score = env.step(action) #reward = score difference after taking the action.
+            obs, reward, done, score = env.step(action, len(env.get_valid_actions())) #reward = score difference after taking the action.
 
             new_state = env.get_state(agent_type) # get the new state after taking the action
             next_valid_actions = env.get_valid_actions() # get the valid moves for the new state (will always return at least 1 since done would be True otherwise)
@@ -96,38 +95,42 @@ def main(agent_type) -> None:
 
             # Render the new state of the game
             if (not done) :
-                env.render(f"Action: {DIRECTION_NAMES[action]}, Actual Score: {score}")
+                #env.render(f"Action: {DIRECTION_NAMES[action]}, Actual Score: {score}")
+                pass
             else:
-                env.render(f"Game Over! Final Score: {score}")
+                #env.render(f"Game Over! Final Score: {score}")
+                pass
 
         print(f"Game {i+1} ended with score: {score}")
-        agent.print_scores(i) # print the score of the episode and the epsilon value to see the progress of the agent
+        #agent.print_scores(i) # print the score of the episode and the epsilon value to see the progress of the agent
+
+    return agent
+
+    
 
 
 
-#Je mets ici l'ancien main avant mes changement de qlearners
-# def og_main() -> None:
-#     board = Board()
-#     render(board, "New game! Make your first move.")
+
+def main(agent_type) -> None:
 
 
-#     while True:
-#         direction = get_arrow()
-#         if direction is None:
-#             continue
+    if agent_type == "qlearner":
+        agent = train_qlearner(NUM_EPISODES)
+        print(agent.qtable)
+        plt.plot(agent.episode_final_scores)
+        plt.xlabel("Episode")
+        plt.ylabel("Score")
+        plt.title("Q-learner 2048 Training")
+        plt.show()
+    elif agent_type == "expectimax":
+        pass  # TODO: implement
+    elif agent_type == "deeplearning":
+        pass  # TODO: implement
+    else:
+        raise ValueError(f"Unknown agent type: {agent_type}")
 
-#         moved = board.sweep(direction)
 
-#         if moved:
-#             placed = board.place_tile()
-#             if not placed:
-#                 render(board, "")
-#                 print("GAME OVER — board is full!")
-#                 break
-#             render(board, f"Moved: {DIRECTION_NAMES[direction]}")
-#         else:
-#             render(board, f"No change for {DIRECTION_NAMES[direction]} — try another direction.")
-
+# Call main with agent_type specified in command line argument
 if __name__ == "__main__":
     try:
         if len(sys.argv) > 1:

@@ -272,6 +272,70 @@ Board_to_list(BoardObject *self, PyObject *Py_UNUSED(ignored))
 }
 
 /**
+ * Board_max_log_tile(self)
+ *
+ * Internal helper: returns the maximum log2 tile value on the board.
+ */
+static uint16_t
+Board_max_log_tile(const BoardObject *self)
+{
+    uint16_t max_log_tile = 0;
+    for (int i = 0; i < BOARD_SIZE; i++) {
+        if (self->board.data[i] > max_log_tile)
+            max_log_tile = self->board.data[i];
+    }
+    return max_log_tile;
+}
+
+/**
+ * Board_get_emptyCount(self)
+ *
+ * Returns the number of empty tiles on the board.
+ */
+static PyObject *
+Board_get_emptyCount(BoardObject *self, PyObject *Py_UNUSED(ignored))
+{
+    int empty_count = 0;
+    for (int i = 0; i < BOARD_SIZE; i++) {
+        if (self->board.data[i] == 0)
+            empty_count++;
+    }
+    return PyLong_FromLong(empty_count);
+}
+
+/**
+ * Board_get_max_logTile(self)
+ *
+ * Returns log2 of the maximum tile value present on the board.
+ * The internal representation already stores log2(tile), so we return max cell value.
+ */
+static PyObject *
+Board_get_max_logTile(BoardObject *self, PyObject *Py_UNUSED(ignored))
+{
+    uint16_t max_log_tile = Board_max_log_tile(self);
+    return PyLong_FromUnsignedLong((unsigned long)max_log_tile);
+}
+
+/**
+ * Board_is_max_corner(self)
+ *
+ * Returns True if at least one maximum tile is located in a corner.
+ */
+static PyObject *
+Board_is_max_corner(BoardObject *self, PyObject *Py_UNUSED(ignored))
+{
+    uint16_t max_log_tile = Board_max_log_tile(self);
+
+    int in_corner =
+        (self->board.data[0] == max_log_tile) ||
+        (self->board.data[3] == max_log_tile) ||
+        (self->board.data[12] == max_log_tile) ||
+        (self->board.data[15] == max_log_tile);
+
+    return PyBool_FromLong(in_corner);
+}
+
+/**
  * Board_methods
  * 
  * Defines the methods available on the Board object.
@@ -307,6 +371,27 @@ static PyMethodDef Board_methods[] = {
         METH_NOARGS,
         "to_list()\n\n"
         "Return the contents as a Python list of ints."
+    },
+    {
+        "get_emptyCount",
+        (PyCFunction)Board_get_emptyCount,
+        METH_NOARGS,
+        "get_emptyCount()\n\n"
+        "Return the number of empty tiles on the board."
+    },
+    {
+        "get_max_logTile",
+        (PyCFunction)Board_get_max_logTile,
+        METH_NOARGS,
+        "get_max_logTile()\n\n"
+        "Return log2 of the largest tile on the board."
+    },
+    {
+        "is_max_corner",
+        (PyCFunction)Board_is_max_corner,
+        METH_NOARGS,
+        "is_max_corner()\n\n"
+        "Return True if the largest tile is in a corner."
     },
     {NULL, NULL, 0, NULL}   /* sentinel */
 };
