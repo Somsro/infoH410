@@ -1,4 +1,5 @@
 import numpy as np
+from pathlib import Path
 
 class Qlearner:
     """A Q-learning agent"""
@@ -7,7 +8,7 @@ class Qlearner:
         self,
         action_size,
         state_size,
-        learning_rate=0.0,
+        learning_rate=0.1,
         gamma=0.98,
         epsilon=1.0,
         epsilon_min=0.01,
@@ -46,11 +47,24 @@ class Qlearner:
     def reset_agent(self):
         self.qtable = np.zeros((self.state_size, self.action_size))
 
+    def save_qtable(self, filepath):
+        filepath = Path(filepath)
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        np.save(filepath, self.qtable)
+
+    def load_qtable(self, filepath):
+        filepath = Path(filepath)
+        self.qtable = np.load(filepath, allow_pickle=False)
+        if self.qtable.shape != (self.state_size, self.action_size):
+            raise ValueError(
+                f"Loaded qtable has shape {self.qtable.shape}, expected {(self.state_size, self.action_size)}"
+            )
+
     def select_greedy(self, state, valid_moves):
         # np.argmax(self.qtable[state]) will select first entry if two or more Q-values are equal, but we want true randomness so we select randomly among the best Q-values:
         q_vals = self.qtable[state, valid_moves] # get the Q-values of the valid moves
         best_q_vals = np.flatnonzero(np.isclose(q_vals, q_vals.max())) # get the indice(s) of the valid moves that have the best Q-value
-        return np.random.choice(best_q_vals) #select_greedy(state) -> action
+        return valid_moves[np.random.choice(best_q_vals)] #select_greedy(state) -> action
 
     def select_action(self, state, valid_moves):
         if np.random.rand() < self.epsilon:

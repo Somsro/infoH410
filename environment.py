@@ -41,18 +41,18 @@ class Environment:
         reward = 0.0
 
         # Reward for creating empty spaces and higher tiles:
-        reward += (curr_empty_count - prev_empty_count) * 10.0  # Reward 10 for each empty space created
-        reward += (curr_max_log_tile - prev_max_log_tile) * 15.0  # Reward 15*(difference in log tile values) for creating higher tiles
+        reward += (curr_empty_count - prev_empty_count) * 5.0  # Reward 5 for each empty space created
+        reward += (curr_max_log_tile - prev_max_log_tile) * 5.0  # Reward 2*(difference in log tile values) for creating higher tiles
 
         # Reward for increasing the number of valid moves:
         if curr_valid_moves_count > prev_valid_moves_count:
-            reward += 5.0
+            reward += 1.0
         elif curr_valid_moves_count < prev_valid_moves_count:
-            reward -= 5.0
+            reward -= 2.0
 
         # Reward for keeping the maximum tile in a corner:
         if is_max_corner:
-            reward += 10.0
+            reward += 5.0
 
         return reward
     
@@ -111,14 +111,16 @@ class Environment:
 
         return observation, reward, terminated, curr_score
 
-    def render(self, message: str = "") -> None:
+    def render(self, message: str = "", over: bool = False) -> None:
         representation = [2**self.board.to_list()[i] if self.board.to_list()[i] > 0 else "   ." for i in range(16)]
         for i in range(4):
             row = representation[i*4:(i+1)*4]
             print(' '.join(f"{v:4}" for v in row))
         if message:
             print(message)
-        print("Arrow keys to move  •  Ctrl-C to quit")
+        if over:
+            return
+        print("Waiting for next agent move...  •  Ctrl-C to quit")
 
         def close(self):
             pass
