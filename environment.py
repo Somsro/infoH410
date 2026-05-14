@@ -77,8 +77,8 @@ class Environment:
         elif agent_type == "expectimax":
             raise NotImplementedError("Expectimax state representation not implemented yet.")
         
-        elif agent_type == "deeplearning":
-            raise NotImplementedError("Deep learning state representation not implemented yet.")
+        elif agent_type == "td":
+            raise NotImplementedError("TD learning state representation not implemented yet.")
         
         else:
             raise ValueError(f"Unknown agent type: {agent_type}")

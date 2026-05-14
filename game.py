@@ -110,7 +110,6 @@ def train_qlearner(nb_episodes) -> Qlearner:
     agent.save_qtable(QTABLE_PATH)
     print(f"Saved qtable to {QTABLE_PATH}")
     return agent
-
     
 
 
@@ -142,7 +141,7 @@ def main(agent_type) -> None:
     elif agent_type == "expectimax":
         #agent = ...
         pass  # TODO: implement
-    elif agent_type == "deeplearning":
+    elif agent_type == "td":
         #agent = ...
         pass  # TODO: implement
     else:

@@ -16,5 +16,5 @@ qlearner:
 expectimax:
 	python game.py expectimax
 
-deeplearning:
-	python game.py deeplearning
+td:
+	python game.py td
