@@ -133,12 +133,12 @@ def main(agent_type) -> None:
             print(f"Loaded qtable from {QTABLE_PATH}")
         else:
             agent = train_qlearner(NUM_EPISODES)
-        print(agent.qtable)
-        plt.plot(agent.episode_final_scores)
-        plt.xlabel("Episode")
-        plt.ylabel("Score")
-        plt.title("Q-learner 2048 Training")
-        plt.show()
+            plt.plot(agent.episode_final_scores)
+            plt.xlabel("Episode")
+            plt.ylabel("Score")
+            plt.title("Q-learner 2048 Training")
+            plt.show()
+
     elif agent_type == "expectimax":
         #agent = ...
         pass  # TODO: implement
