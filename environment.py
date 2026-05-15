@@ -10,6 +10,17 @@ class Environment:
         self.agent = "player"
         self.possible_agents = [self.agent]
 
+    def clone(self):
+        new_env = Environment()
+        new_env.board = self.board.clone()
+        return new_env
+    
+    def set_board(self, board):
+        self.board = board
+
+    def is_done(self):
+        return len(self.get_valid_actions()) == 0
+
     def reset(self, seed=None, options=None):
         self.board = Board()
         observation = np.array(self.board.to_list(), dtype=np.int64)
@@ -22,14 +33,42 @@ class Environment:
         return observation
     
     # Utility functions
-    def get_score(self, board):
-        return sum((2**v if v > 0 else 0) for v in board.to_list())
+    def get_score(self, type="default"):
+        if type == "expectimax":
+            empty_cells  = self.board.get_emptyCount()          # [0, 16]
+            monotonicity = self.board.get_monotonicity()        # [0, 12]
+            merge_potential = self.board.get_merge_potential()  # [0, 12]
+            smoothness   = self.board.get_smoothness()          # [-72, 0]
+            max_log_tile = self.board.get_max_logTile()         # [1, 17]
+            raw_score = self.get_score("raw")                   # [0, 2^17]
+
+            # Scale corner bonus with tile value instead of binary
+            corner_bonus = max_log_tile ** 3 if self.board.is_max_corner() else 0
+
+            # Penalize merges away from corner: if max tile NOT in corner, apply penalty
+            corner_penalty = -(max_log_tile ** 3) * 2 if not self.board.is_max_corner() else 0
+
+            score = (
+                200.0 * empty_cells +      # 3200 max
+                50.0  * monotonicity +     # 600 max
+                30.0  * merge_potential +  # 360 max
+                10.0  * smoothness +       # -720 max
+                corner_bonus +             # 4913 max
+                corner_penalty +           # -9826 max
+                0.1 * raw_score            # Small weight to encourage without dominating the heuristic
+            )
+            return score
+        else:
+            return sum((2**v if v > 0 else 0) for v in self.board.to_list())
     
     def get_valid_actions(self):
         return [d for d in range(4) if self.board.is_move_valid(d)]
 
     def get_empty_count(self):
         return int(self.board.get_emptyCount())
+    
+    def get_empty_cells(self):
+        return self.board.get_empty_cells()
 
     def get_max_log_tile(self):
         return int(self.board.get_max_logTile())
@@ -75,7 +114,8 @@ class Environment:
 
 
         elif agent_type == "expectimax":
-            raise NotImplementedError("Expectimax state representation not implemented yet.")
+            return self
+            # raise NotImplementedError("Expectimax state representation not implemented yet.")
         
         elif agent_type == "td":
             raise NotImplementedError("TD learning state representation not implemented yet.")
@@ -84,7 +124,7 @@ class Environment:
             raise ValueError(f"Unknown agent type: {agent_type}")
 
     def step(self, action: int, prev_valid_moves_count: int):
-        prev_score = self.get_score(self.board)
+        prev_score = self.get_score()
         prev_empty_count = self.get_empty_count()
         prev_max_log_tile = self.get_max_log_tile()
 
@@ -94,7 +134,7 @@ class Environment:
 
         if moved:
             placed = bool(self.board.place_tile()) # place_tile() returns False if it cannot place a new tile, which means the game is over
-            curr_score = self.get_score(self.board)
+            curr_score = self.get_score()
             reward = self.calculate_reward(prev_empty_count, self.get_empty_count(), prev_max_log_tile, self.get_max_log_tile(), prev_valid_moves_count, len(self.get_valid_actions()), self.is_max_corner())
             if not placed:
                 reward = -50.0
@@ -110,6 +150,12 @@ class Environment:
         self.score = curr_score
 
         return observation, reward, terminated, curr_score
+    
+    def simple_step(self, action: int):
+        self.board.sweep(int(action))
+    
+    def place_tile(self, cell, log_value):
+        self.board.force_place_tile(cell, log_value)
 
     def render(self, message: str = "", over: bool = False) -> None:
         representation = [2**self.board.to_list()[i] if self.board.to_list()[i] > 0 else "   ." for i in range(16)]
@@ -122,5 +168,5 @@ class Environment:
             return
         print("Waiting for next agent move...  •  Ctrl-C to quit")
 
-        def close(self):
-            pass
+    def close(self):
+        pass

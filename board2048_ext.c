@@ -25,6 +25,8 @@ typedef struct {
     BoardStruct board;
 } BoardObject;
 
+static PyTypeObject BoardType;
+
 /**
  * __new__(cls)
  * 
@@ -236,6 +238,65 @@ Board_place_tile(BoardObject *self, PyObject *Py_UNUSED(ignored))
 }
 
 /**
+ * Board_force_place_tile(self, pos, log_value)
+ *
+ * Forces a tile to be placed at a specific position with a specific log value.
+ */
+static PyObject *
+Board_force_place_tile(BoardObject *self, PyObject *args)
+{
+    int pos, log_value;
+    if (!PyArg_ParseTuple(args, "ii", &pos, &log_value))
+        return NULL;
+
+    if (pos < 0 || pos >= BOARD_SIZE) {
+        PyErr_SetString(PyExc_ValueError, "Position must be between 0 and 15");
+        return NULL;
+    }
+    if (log_value < 0) {
+        PyErr_SetString(PyExc_ValueError, "Log value must be non-negative");
+        return NULL;
+    }
+    if (self->board.data[pos] != 0) {
+        PyErr_SetString(PyExc_ValueError, "Cell is not empty");
+        return NULL;
+    }
+
+    self->board.data[pos] = (uint16_t)log_value;
+    return PyBool_FromLong(1);
+}
+
+/**
+ * Board_get_empty_cells(self)
+ *
+ * Returns a list of indices of all empty cells on the board.
+ */
+static PyObject *
+Board_get_empty_cells(BoardObject *self, PyObject *Py_UNUSED(ignored))
+{
+    PyObject *list = PyList_New(0);
+    if (!list) return NULL;
+
+    for (int i = 0; i < BOARD_SIZE; i++) {
+        if (self->board.data[i] == 0) {
+            PyObject *index = PyLong_FromLong(i);
+            if (!index) {
+                Py_DECREF(list);
+                return NULL;
+            }
+            if (PyList_Append(list, index) < 0) {
+                Py_DECREF(index);
+                Py_DECREF(list);
+                return NULL;
+            }
+            Py_DECREF(index);
+        }
+    }
+
+    return list;
+}
+
+/**
  * Board_repr(self)
  * 
  * Returns a string representation of the board.
@@ -336,6 +397,115 @@ Board_is_max_corner(BoardObject *self, PyObject *Py_UNUSED(ignored))
 }
 
 /**
+ * Board_clone(self)
+ *
+ * Returns a copy of the board.
+ */
+static PyObject *
+Board_clone(BoardObject *self, PyObject *Py_UNUSED(ignored))
+{
+    BoardObject *clone = (BoardObject *)BoardType.tp_new(&BoardType, NULL, NULL);
+    if (!clone) return NULL;
+    memcpy(clone->board.data, self->board.data, sizeof(self->board.data));
+    return (PyObject *)clone;
+}
+
+/**
+ * Board_get_monotonicity(self)
+ *
+ * Returns the monotonicity score of the board. Calculated as the sum of monotonicity in rows and columns.
+ * Higher (more positive) is more monotone.
+ */
+static PyObject *
+Board_get_monotonicity(BoardObject *self, PyObject *Py_UNUSED(ignored))
+{
+    int mono_left = 0, mono_right = 0, mono_up = 0, mono_down = 0;
+
+    // Check rows for left/right monotonicity
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 3; j++) {
+            if (self->board.data[i * 4 + j] > self->board.data[i * 4 + j + 1])
+                mono_left++;
+            else if (self->board.data[i * 4 + j] < self->board.data[i * 4 + j + 1])
+                mono_right++;
+        }
+    }
+
+    // Check columns for up/down monotonicity
+    for (int j = 0; j < 4; j++) {
+        for (int i = 0; i < 3; i++) {
+            if (self->board.data[i * 4 + j] > self->board.data[(i + 1) * 4 + j])
+                mono_up++;
+            else if (self->board.data[i * 4 + j] < self->board.data[(i + 1) * 4 + j])
+                mono_down++;
+        }
+    }
+
+    // Return the monoticity as a score: higher is more monotone
+    int mono_score = max(mono_left, mono_right) + max(mono_up, mono_down);
+    return PyLong_FromLong(mono_score);
+}
+
+/**
+ * Board_get_smoothness(self)
+ * 
+ * Returns the smoothness score of the board, calculated as the negative sum of absolute differences between adjacent tiles. 
+ * Higher (less negative) is smoother.
+ */
+static PyObject *
+Board_get_smoothness(BoardObject *self, PyObject *Py_UNUSED(ignored))
+{
+    int smoothness = 0;
+
+    // Check rows for smoothness
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 3; j++) {
+            int a = self->board.data[i * 4 + j];
+            int b = self->board.data[i * 4 + j + 1];
+            if (a > 0 && b > 0) {
+                smoothness -= abs(a - b);  // compare log2 values directly
+            }
+        }
+    }
+
+    // Check columns for smoothness
+    for (int j = 0; j < 4; j++) {
+        for (int i = 0; i < 3; i++) {
+            int a = self->board.data[i * 4 + j];
+            int b = self->board.data[(i + 1) * 4 + j];
+            if (a > 0 && b > 0) {
+                smoothness -= abs(a - b);  // compare log2 values directly
+            }
+        }
+    }
+
+    return PyLong_FromLong(smoothness);
+}
+
+/**
+ * Board_get_merge_potential(self)
+ *
+ * Returns the number of potential merges on the board.
+ */
+static PyObject *
+Board_get_merge_potential(BoardObject *self, PyObject *Py_UNUSED(ignored))
+{
+    int merges = 0;
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 3; j++) {
+            uint16_t a = self->board.data[i * 4 + j];
+            uint16_t b = self->board.data[i * 4 + j + 1];
+            if (a != 0 && a == b) merges++;
+
+            a = self->board.data[j * 4 + i];
+            b = self->board.data[(j + 1) * 4 + i];
+            if (a != 0 && a == b) merges++;
+        }
+    }
+    return PyLong_FromLong(merges);
+}
+
+/**
  * Board_methods
  * 
  * Defines the methods available on the Board object.
@@ -357,6 +527,21 @@ static PyMethodDef Board_methods[] = {
         "Place a new tile on a random empty cell.\n"
         "Value is 1 (90% chance) or 2 (10% chance).\n"
         "Returns True if a tile was placed, False if the board is full."
+    },
+    {
+        "force_place_tile",
+        (PyCFunction)Board_force_place_tile,
+        METH_VARARGS,
+        "force_place_tile(pos, log_value)\n\n"
+        "Place a tile with log2 value at the specified position (0-15).\n"
+        "Returns True if the tile was placed, False if the cell is not empty."
+    },
+    {
+        "get_empty_cells",
+        (PyCFunction)Board_get_empty_cells,
+        METH_NOARGS,
+        "get_empty_cells()\n\n"
+        "Return a list of indices of empty cells on the board."
     },
     {
         "is_move_valid",
@@ -392,6 +577,34 @@ static PyMethodDef Board_methods[] = {
         METH_NOARGS,
         "is_max_corner()\n\n"
         "Return True if the largest tile is in a corner."
+    },
+    {
+        "clone",
+        (PyCFunction)Board_clone,
+        METH_NOARGS,
+        "clone()\n\n"
+        "Return a new Board object with the same state."
+    },
+    {
+        "get_monotonicity",
+        (PyCFunction)Board_get_monotonicity,
+        METH_NOARGS,
+        "get_monotonicity()\n\n"
+        "Return the monotonicity score of the board."
+    },
+    {
+        "get_smoothness",
+        (PyCFunction)Board_get_smoothness,
+        METH_NOARGS,
+        "get_smoothness()\n\n"
+        "Return the smoothness score of the board."
+    },
+    {
+        "get_merge_potential",
+        (PyCFunction)Board_get_merge_potential,
+        METH_NOARGS,
+        "get_merge_potential()\n\n"
+        "Return the number of potential merges on the board."
     },
     {NULL, NULL, 0, NULL}   /* sentinel */
 };

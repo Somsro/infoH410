@@ -3,6 +3,7 @@ from pathlib import Path
 from environment import Environment
 from qleaners import Qlearner
 import matplotlib.pyplot as plt
+from expectimax import ExpectimaxAgent
 
 #Training hyperparameters
 NUM_EPISODES = 50000
@@ -139,8 +140,8 @@ def main(agent_type) -> None:
             plt.show()
 
     elif agent_type == "expectimax":
-        #agent = ...
-        pass  # TODO: implement
+        agent = ExpectimaxAgent(depth=6)
+
     elif agent_type == "td":
         #agent = ...
         pass  # TODO: implement
@@ -158,9 +159,9 @@ def main(agent_type) -> None:
         state = env.get_state(agent_type) # get the current state for the agent
         valid_moves = env.get_valid_actions() # get the valid moves for the current state (will always return at least 1 since done would be True otherwise)
 
-
         # Agents take actions based on the state and valid moves
         action = agent.select_action(state, valid_moves) 
+
         # Step in the environment
         obs, reward, done, score = env.step(action, len(env.get_valid_actions())) #reward = score difference after taking the action.
 
