@@ -1,9 +1,6 @@
 import numpy as np
 from pathlib import Path
 
-
-# ── Board simulation ──────────────────────────────────────────────────
-
 def _slide_row_left(row):
     """
     Merge and slide a row (log2-encoded values) to the left.
@@ -24,7 +21,6 @@ def _slide_row_left(row):
             i += 1
     result += [0] * (4 - len(result))
     return result, score
-
 
 def compute_after_state(board_list, action):
     """
@@ -72,15 +68,17 @@ def compute_after_state(board_list, action):
     return flat, flat != list(board_list), total_score
 
 
-# ── N-Tuple Network ───────────────────────────────────────────────────
-
 class NTupleNetwork:
     """
     N-tuple network value function approximator for 2048.
 
-    Uses 4 base 4-tuple patterns, each expanded via 8-way board symmetry
-    (4 rotations × horizontal reflection), yielding up to 32 unique lookup
-    tables.  Each cell holds a log2-encoded tile value in [0, NUM_VALUES).
+    Uses 6 base 6-tuple patterns, each expanded via 8-way board symmetry
+    (4 rotations x horizontal reflection), yielding up to 48 unique lookup
+    tables. Each cell holds a log2-encoded tile value in [0, NUM_VALUES].
+
+    With dynamic LR enabled, each lookup table entry tracks its own visit
+    count and uses lr = 1/count instead of a fixed alpha, guaranteeing
+    convergence per the tabular TD learning theory.
 
     Board cell indices (row-major):
          0  1  2  3
@@ -92,32 +90,40 @@ class NTupleNetwork:
     N-Tuple Networks for the Game 2048".
     """
 
-    NUM_VALUES = 16  # log2 tile values 0..15 (0 = empty)
+    NUM_VALUES = 16
 
-    # Four base 4-tuples covering different spatial relationships.
     BASE_PATTERNS = [
-        (0, 1, 2, 3),   # horizontal row
-        (0, 1, 4, 5),   # 2×2 square
-        (0, 1, 5, 6),   # 2×2 diagonal shift
-        (0, 4, 5, 9),   # zigzag
+        (0, 1, 2, 3, 4, 5),
+        (4, 5, 6, 7, 8, 9),
+        (0, 1, 2, 4, 5, 6),
+        (0, 1, 2, 3, 4, 8),
+        (0, 1, 4, 5, 8, 9),
+        (1, 2, 5, 6, 9, 10),
     ]
 
-    def __init__(self):
-        self.patterns = self._generate_symmetric_patterns()
-        lut_size = self.NUM_VALUES ** len(self.BASE_PATTERNS[0])
-        self.luts = [np.zeros(lut_size, dtype=np.float64) for _ in self.patterns]
+    def __init__(self, dynamic_lr=True, learning_rate=0.0025):
+        self.patterns    = self._generate_symmetric_patterns()
+        self.dynamic_lr  = dynamic_lr
+        self.alpha       = learning_rate
+        lut_size         = self.NUM_VALUES ** 6
 
-    # ── Symmetry helpers ──────────────────────────────────────────────
+        self.luts = [np.zeros(lut_size, dtype=np.float32) for _ in self.patterns]
+
+        if self.dynamic_lr:
+            self.counts     = [np.zeros(lut_size, dtype=np.uint32) for _ in self.patterns]
+            self.MIN_VISITS = 50   # trust early estimates less — avoids wild updates
+
+    # Symmetry helpers
 
     @staticmethod
     def _rotate_idx(i):
-        """Rotate a cell index 90° clockwise on the 4×4 grid."""
+        """Rotate a cell index 90° clockwise on the 4x4 grid."""
         row, col = i // 4, i % 4
         return col * 4 + (3 - row)
 
     @staticmethod
     def _reflect_idx(i):
-        """Reflect a cell index horizontally on the 4×4 grid."""
+        """Reflect a cell index horizontally on the 4x4 grid."""
         row, col = i // 4, i % 4
         return row * 4 + (3 - col)
 
@@ -129,7 +135,7 @@ class NTupleNetwork:
         all_patterns, seen = [], set()
         for base in self.BASE_PATTERNS:
             p = base
-            for _ in range(4):                                   # 4 rotations
+            for _ in range(4):
                 for variant in (p, self._apply(p, self._reflect_idx)):
                     if variant not in seen:
                         seen.add(variant)
@@ -137,7 +143,7 @@ class NTupleNetwork:
                 p = self._apply(p, self._rotate_idx)
         return all_patterns
 
-    # ── Core operations ───────────────────────────────────────────────
+    # Core operations
 
     def _index(self, board, pattern):
         """Convert the cells selected by a pattern into a lookup table index."""
@@ -151,42 +157,59 @@ class NTupleNetwork:
         return sum(lut[self._index(board, p)]
                    for lut, p in zip(self.luts, self.patterns))
 
-    def update_weights(self, board, delta):
-        """Add delta to the active entry of every lookup table for this board."""
-        for lut, p in zip(self.luts, self.patterns):
-            lut[self._index(board, p)] += delta
+    def update_weights(self, board, td_error):
+        """
+        Update each active lookup table entry using td_error directly.
 
-    # ── Persistence ───────────────────────────────────────────────────
+        Dynamic LR : lr = 1 / max(count, MIN_VISITS) per entry.
+        Fixed LR   : lr = alpha / n_base_patterns.
+        """
+        n = len(self.BASE_PATTERNS)
+        for i, (lut, p) in enumerate(zip(self.luts, self.patterns)):
+            idx = self._index(board, p)
+            if self.dynamic_lr:
+                self.counts[i][idx] += 1
+                lr = 1.0 / max(self.counts[i][idx], self.MIN_VISITS)
+            else:
+                lr = self.alpha / n
+            lut[idx] += lr * td_error
+
+    # Persistence
 
     def save(self, filepath):
-        np.save(filepath, np.array(self.luts, dtype=object), allow_pickle=True)
+        filepath = Path(filepath).with_suffix('')
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        # Compress all LUTs into a single .npz file for storage efficiency
+        np.savez_compressed(filepath, luts=np.stack(self.luts))
 
     def load(self, filepath):
-        self.luts = list(np.load(filepath, allow_pickle=True))
+        # np.load needs the .npz extension to find the file
+        filepath = Path(filepath).with_suffix('.npz')
+        data      = np.load(filepath)
+        stacked   = data['luts']
+        self.luts = [stacked[i] for i in range(len(stacked))]
+        if self.dynamic_lr:
+            lut_size    = self.NUM_VALUES ** 6
+            self.counts = [np.zeros(lut_size, dtype=np.uint32) for _ in self.patterns]
 
-
-# ── TD Agent ─────────────────────────────────────────────────────────
 
 class TDAgent:
     """
     TD(0) agent with n-tuple network for 2048.
 
     Learns a value function over board after-states (the board after a sweep
-    but before the random tile is placed).  The update rule is:
+    but before the random tile is placed). The update rule is:
 
-        V(s_after) += (α / N) * [r + V(s'_after) - V(s_after)]
+        V(s_after) += lr * [r + V(s'_after) - V(s_after)]
 
-    where N is the number of lookup tables, so the effective per-state update
-    magnitude stays α * td_error regardless of how many tuples are used.
-
-    Action selection is ε-greedy over after-state values:
-    the action whose resulting after-state has the highest estimated value is
-    chosen with probability (1 - ε), and a random valid action otherwise.
+    Action selection is epsilon-greedy over after-state values.
     """
 
-    def __init__(self, learning_rate=0.01, epsilon=1.0,
-                 epsilon_min=0.01, epsilon_decay=0.9995):
-        self.network       = NTupleNetwork()
+    def __init__(self, learning_rate=0.0025, epsilon=1.0,
+                 epsilon_min=0.001, epsilon_decay=0.99995,
+                 dynamic_lr=True):
+        self.network       = NTupleNetwork(dynamic_lr=dynamic_lr,
+                                           learning_rate=learning_rate)
         self.alpha         = learning_rate
         self.epsilon       = epsilon
         self.epsilon_min   = epsilon_min
@@ -194,15 +217,9 @@ class TDAgent:
 
         self.episode_final_scores = []
 
-    # ── Action selection ──────────────────────────────────────────────
-
     def select_action(self, board_list, valid_actions):
         """
-        Pick an action using ε-greedy after-state evaluation.
-
-        board_list    : flat list of 16 log2-encoded tile values.
-        valid_actions : list of valid action indices (non-empty).
-        Returns       : chosen action index.
+        Pick an action using epsilon-greedy after-state evaluation.
         """
         if np.random.random() < self.epsilon:
             return np.random.choice(valid_actions)
@@ -218,30 +235,36 @@ class TDAgent:
                     best_action = action
         return best_action
 
-    # ── Learning ──────────────────────────────────────────────────────
-
     def update(self, prev_after_board, reward, curr_after_board, done):
         """
         Perform a TD(0) weight update.
 
         prev_after_board : after-state from the previous time step.
-        reward           : raw merge score earned by the action that produced prev_after_board.
+        reward           : raw merge score earned by that action.
         curr_after_board : after-state for the current action (None if terminal).
         done             : True when the episode has ended.
-        Returns          : TD error (scalar, useful for monitoring).
+        Returns          : TD error (scalar).
         """
-        v_prev = self.network.evaluate(prev_after_board)
-        v_next = 0.0 if done else self.network.evaluate(curr_after_board)
+        if prev_after_board is None:
+            return 0.0
 
-        td_error = reward + v_next - v_prev
-        delta    = self.alpha * td_error / len(self.network.patterns)
-        self.network.update_weights(prev_after_board, delta)
+        v_prev = self.network.evaluate(prev_after_board)
+
+        # Raw reward
+        # relative to v_next which can be in the thousands
+        if done:
+            td_error = float(reward) - v_prev   # v_next = 0 at terminal
+        else:
+            v_next   = self.network.evaluate(curr_after_board)
+            td_error = float(reward) + v_next - v_prev
+
+        self.network.update_weights(prev_after_board, td_error)
         return td_error
 
     def decay_epsilon(self):
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
 
-    # ── Persistence ───────────────────────────────────────────────────
+    # Persistence
 
     def save(self, filepath):
         filepath = Path(filepath)
