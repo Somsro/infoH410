@@ -87,6 +87,7 @@ Board_sweep_struct(BoardStruct *board, int direction)
     }
 
     int changed = 0;
+    int merge_reward = 0;
 
     for (int i = 0; i < 4; i++) {
         int base = lane_start + i * lane_step;
@@ -105,6 +106,7 @@ Board_sweep_struct(BoardStruct *board, int direction)
                     changed = 1;
                 } else if (board->data[pos] == board->data[check]) {
                     board->data[pos]++;
+                    merge_reward += (1 << board->data[pos]); // reward is the new tile value
                     board->data[check] = 0;
                     changed = 1;
                     break;
@@ -115,14 +117,18 @@ Board_sweep_struct(BoardStruct *board, int direction)
         }
     }
 
-    return changed;
+    if (changed) {
+        return merge_reward;
+    } else {
+        return -1;
+    }
 }
 
 /**
  * Board_sweep(self, direction)
  * 
  * Sweeps the board in the given direction (0=up, 1=right, 2=down, 3=left).
- * Returns True if any tile moved or merged, False if the board was unchanged.
+ * Returns the reward for the move.
  */
 static PyObject *
 Board_sweep(BoardObject *self, PyObject *args)
@@ -131,11 +137,8 @@ Board_sweep(BoardObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "i", &direction))
         return NULL;
 
-    int changed = Board_sweep_struct(&self->board, direction);
-    if (changed < 0)
-        return NULL;
-
-    return PyBool_FromLong(changed);
+    int moved = Board_sweep_struct(&self->board, direction);
+    return PyLong_FromLong(moved);
 }
 
 /**
@@ -153,11 +156,11 @@ Board_is_move_valid(BoardObject *self, PyObject *args)
     BoardStruct copy;
     memcpy(&copy, &self->board, sizeof(BoardStruct));
 
-    int changed = Board_sweep_struct(&copy, direction);
-    if (changed < 0)
-        return NULL;
+    int reward = Board_sweep_struct(&copy, direction);
+    if (reward < 0)
+        return PyBool_FromLong(0);
 
-    return PyBool_FromLong(changed);
+    return PyBool_FromLong(1);
 }
 
 /**

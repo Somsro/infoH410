@@ -149,7 +149,9 @@ class NTupleNetwork:
         """Convert the cells selected by a pattern into a lookup table index."""
         idx = 0
         for cell in pattern:
-            idx = idx * self.NUM_VALUES + board[cell]
+            # Ensure tile log-value never exceeds 15 (for 16^6 LUT)
+            val = min(board[cell], self.NUM_VALUES - 1)
+            idx = idx * self.NUM_VALUES + val
         return idx
 
     def evaluate(self, board):
@@ -206,7 +208,7 @@ class TDAgent:
     """
 
     def __init__(self, learning_rate=0.0025, epsilon=1.0,
-                 epsilon_min=0.001, epsilon_decay=0.99995,
+                 epsilon_min=0.001, epsilon_decay=0.9995,
                  dynamic_lr=True):
         self.network       = NTupleNetwork(dynamic_lr=dynamic_lr,
                                            learning_rate=learning_rate)
@@ -217,48 +219,53 @@ class TDAgent:
 
         self.episode_final_scores = []
 
-    def select_action(self, board_list, valid_actions):
+    def select_action(self, env):
         """
         Pick an action using epsilon-greedy after-state evaluation.
         """
+        valid_actions = env.get_valid_actions()
+        if not valid_actions: return None
+
         if np.random.random() < self.epsilon:
             return np.random.choice(valid_actions)
 
         best_action = valid_actions[0]
-        best_value  = -float('inf')
+        best_value = -float('inf')
         for action in valid_actions:
-            after_board, moved, _ = compute_after_state(board_list, action)
-            if moved:
-                value = self.network.evaluate(after_board)
-                if value > best_value:
-                    best_value  = value
-                    best_action = action
+            new_env = env.clone()
+            reward = new_env.simple_step(action)
+            value = self.network.evaluate(new_env.board.to_list())
+            total_value = value + float(reward)
+            
+            if total_value > best_value:
+                best_value  = total_value
+                best_action = action
         return best_action
 
-    def update(self, prev_after_board, reward, curr_after_board, done):
+    def update(self, env, reward, new_env, done):
         """
         Perform a TD(0) weight update.
 
-        prev_after_board : after-state from the previous time step.
-        reward           : raw merge score earned by that action.
-        curr_after_board : after-state for the current action (None if terminal).
-        done             : True when the episode has ended.
-        Returns          : TD error (scalar).
+        env     : after-state from the previous time step.
+        reward  : raw merge score earned by that action.
+        new_env : after-state for the current action (None if terminal).
+        done    : True when the episode has ended.
+        Returns : TD error (scalar).
         """
-        if prev_after_board is None:
+        if new_env is None:
             return 0.0
 
-        v_prev = self.network.evaluate(prev_after_board)
+        v_prev = self.network.evaluate(env.board.to_list())
 
         # Raw reward
         # relative to v_next which can be in the thousands
         if done:
             td_error = float(reward) - v_prev   # v_next = 0 at terminal
         else:
-            v_next   = self.network.evaluate(curr_after_board)
+            v_next   = self.network.evaluate(new_env.board.to_list())
             td_error = float(reward) + v_next - v_prev
 
-        self.network.update_weights(prev_after_board, td_error)
+        self.network.update_weights(env.board.to_list(), td_error)
         return td_error
 
     def decay_epsilon(self):

@@ -34,9 +34,9 @@ class ExpectimaxAgent:
                 best = max(best, score)
             return best
 
-    def select_action(self, env, valid_moves):
+    def select_action(self, env):
         best_action, best_score = None, -INFINITY
-        for action in valid_moves:
+        for action in env.get_valid_actions():
             new_env = env.clone()
             new_env.simple_step(action)
             score = self.expectimax(new_env, self.depth-1, True)

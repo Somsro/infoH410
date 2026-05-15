@@ -2,13 +2,12 @@ import sys
 from pathlib import Path
 from environment import Environment
 from qleaners import Qlearner
-from TDAgent import TDAgent, compute_after_state
+from TDAgent import TDAgent
 import matplotlib.pyplot as plt
 from expectimax import ExpectimaxAgent
 
 #Training hyperparameters
 NUM_EPISODES = 50000
-
 
 # Hyperparameters for Q-learner
 GAMMA = 0.99
@@ -22,6 +21,9 @@ TD_WEIGHTS_PATH = Path("td_weights")
 TD_LEARNING_RATE = 0.0025
 TD_EPS_MIN = 0.001
 TD_EPS_DECAY = 0.9995
+
+# Expectimax hyperparameters
+EXPECTIMAX_DEPTH = 5
 
 # ── Platform-specific single-keypress reading ────────────────────────
 if sys.platform == "win32":
@@ -62,9 +64,6 @@ else:
 # ── Display ──────────────────────────────────────────────────────────
 
 DIRECTION_NAMES = {0: "Up", 1: "Right", 2: "Down", 3: "Left"}
-
-# ── Utility functions ────────────────────────────────────────────────
-
 
 
 # ── Game loop ────────────────────────────────────────────────────────
@@ -133,34 +132,34 @@ def train_td(nb_episodes) -> TDAgent:
 
     for episode in range(nb_episodes):
         env.reset(options=False)
-        done  = False
-        score = 0
+        done = False
 
-        # Bootstrap: select first action before entering the loop
-        board_list    = env.board.to_list()
-        valid_actions = env.get_valid_actions()
-        action        = agent.select_action(board_list, valid_actions)
-        prev_after_board, _, prev_merge_score = compute_after_state(board_list, action)
-
+        # Get initial after-state
+        action = agent.select_action(env)
+        after_env = env.clone()
+        after_env.simple_step(action)
+        
         while not done:
-            prev_valid_count = len(valid_actions)
-            _, _, done, score = env.step(action, prev_valid_count)
+            # Real step places random tile
+            _, done = env.step(action) 
 
             if not done:
-                board_list    = env.board.to_list()
-                valid_actions = env.get_valid_actions()
-                action        = agent.select_action(board_list, valid_actions)
-                curr_after_board, _, curr_merge_score = compute_after_state(board_list, action)
-                # Non-terminal update: prev → curr
-                agent.update(prev_after_board, prev_merge_score, curr_after_board, done=False)
-                prev_after_board = curr_after_board
-                prev_merge_score = curr_merge_score
+                next_action = agent.select_action(env)
+                next_after_env = env.clone()
+                # Get the reward that results from the NEXT move
+                next_reward = next_after_env.simple_step(next_action)
+                
+                # Update current after-state using NEXT reward and NEXT after-state
+                agent.update(after_env, next_reward, next_after_env, done=False)
+                
+                after_env = next_after_env
+                action = next_action
             else:
-                # Terminal update: last afterstate has no successor
-                agent.update(prev_after_board, prev_merge_score, None, done=True)
+                agent.update(after_env, 0, None, done=True)
 
         agent.decay_epsilon()
-        agent.episode_final_scores.append(score)
+        agent.episode_final_scores.append(env.get_score())
+        # env.render(f"Episode {episode+1} ended with score: {env.get_score()}", over=True)
 
         if (episode + 1) % 100 == 0:
             recent = agent.episode_final_scores[-100:]
@@ -196,7 +195,7 @@ def main(agent_type) -> None:
             plt.show()
 
     elif agent_type == "expectimax":
-        agent = ExpectimaxAgent(depth=6)
+        agent = ExpectimaxAgent(depth=EXPECTIMAX_DEPTH)
 
     elif agent_type == "td":
         # Check for the .npz file that savez_compressed produces
@@ -230,23 +229,23 @@ def main(agent_type) -> None:
 
         # List of useful getters 
         state = env.get_state(agent_type) # get the current state for the agent
-        valid_moves = env.get_valid_actions() # get the valid moves for the current state (will always return at least 1 since done would be True otherwise)
+        # valid_moves = env.get_valid_actions() # get the valid moves for the current state (will always return at least 1 since done would be True otherwise)
 
         # Agents take actions based on the state and valid moves
-        action = agent.select_action(state, valid_moves) 
+        action = agent.select_action(state) 
 
         # Step in the environment
-        obs, reward, done, score = env.step(action, len(env.get_valid_actions())) #reward = score difference after taking the action.
+        reward, done = env.step(action) #reward = score difference after taking the action.
 
         # List of useful getters
-        new_state = env.get_state(agent_type) # get the new state after taking the action
-        next_valid_actions = env.get_valid_actions() # get the valid moves for the new state (will always return at least 1 since done would be True otherwise)
+        # new_state = env.get_state(agent_type) # get the new state after taking the action
+        # next_valid_actions = env.get_valid_actions() # get the valid moves for the new state (will always return at least 1 since done would be True otherwise)
 
         # Render the new state of the game
         if (not done) :
-            env.render(f"Action: {DIRECTION_NAMES[action]}, Actual Score: {score}")
+            env.render(f"Action: {DIRECTION_NAMES[action]}, Actual Score: {env.get_score()}")
         else:
-            env.render(f"Game Over! Final Score: {score}")
+            env.render(f"Game Over! Final Score: {env.get_score()}")
 
 
 # Call main with agent_type specified in command line argument

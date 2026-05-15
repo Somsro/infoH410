@@ -24,7 +24,6 @@ class Environment:
     def reset(self, seed=None, options=None):
         self.board = Board()
         observation = np.array(self.board.to_list(), dtype=np.int64)
-        self.reward = 0
         self.done = False
         self.truncated = False
         self.score = 0
@@ -111,8 +110,7 @@ class Environment:
             state = state * 2 + int(is_max_corner)
 
             return state
-
-
+        
         elif agent_type == "expectimax":
             return self
             # raise NotImplementedError("Expectimax state representation not implemented yet.")
@@ -123,36 +121,37 @@ class Environment:
         else:
             raise ValueError(f"Unknown agent type: {agent_type}")
 
-    def step(self, action: int, prev_valid_moves_count: int):
-        prev_score = self.get_score()
-        prev_empty_count = self.get_empty_count()
-        prev_max_log_tile = self.get_max_log_tile()
+    def step(self, action: int):
+        # prev_score = self.get_score()
+        # prev_empty_count = self.get_empty_count()
+        # prev_max_log_tile = self.get_max_log_tile()
 
-        moved = bool(self.board.sweep(int(action))) #sweep() returns False if the move was invalid (no tiles moved or merged)
-        reward = 0.0
+        merge_value = self.board.sweep(int(action))
         terminated = False
+        if merge_value >= 0:
+            self.board.place_tile()
+            self.get_valid_actions()
+            terminated = self.get_valid_actions() == []
 
-        if moved:
-            placed = bool(self.board.place_tile()) # place_tile() returns False if it cannot place a new tile, which means the game is over
-            curr_score = self.get_score()
-            reward = self.calculate_reward(prev_empty_count, self.get_empty_count(), prev_max_log_tile, self.get_max_log_tile(), prev_valid_moves_count, len(self.get_valid_actions()), self.is_max_corner())
-            if not placed:
-                reward = -50.0
-                terminated = True
-        else:
-            reward = -100.0  # Heavy penalty for invalid moves (for qlearners it souhldn't happen since we only give valid moves)
-            curr_score = prev_score
+        # if moved:
+        #     placed = bool(self.board.place_tile()) # place_tile() returns False if it cannot place a new tile, which means the game is over
+        #     curr_score = self.get_score()
+        #     reward = self.calculate_reward(prev_empty_count, self.get_empty_count(), prev_max_log_tile, self.get_max_log_tile(), prev_valid_moves_count, len(self.get_valid_actions()), self.is_max_corner())
+        #     if not placed:
+        #         reward = -50.0
+        #         terminated = True
+        # else:
+        #     reward = -100.0  # Heavy penalty for invalid moves (for qlearners it souhldn't happen since we only give valid moves)
+        #     curr_score = prev_score
 
-        observation = np.array(self.board.to_list(), dtype=np.int64)
-
-        self.reward = reward
         self.done = terminated
-        self.score = curr_score
+        # self.score = curr_score
 
-        return observation, reward, terminated, curr_score
+        # return observation, reward, terminated, curr_score
+        return merge_value, terminated
     
     def simple_step(self, action: int):
-        self.board.sweep(int(action))
+        return self.board.sweep(int(action))
     
     def place_tile(self, cell, log_value):
         self.board.force_place_tile(cell, log_value)
