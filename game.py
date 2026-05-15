@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 from environment import Environment
 from qleaners import Qlearner
+from TDAgent import TDAgent, compute_after_state
 import matplotlib.pyplot as plt
 from expectimax import ExpectimaxAgent
 
@@ -15,6 +16,12 @@ EPS_MIN = 0.01
 EPS_DECAY = 0.9995
 STATE_SIZE = 2240 #16 (empty_count) * 14 (max_log_tile) * 5 (valid_moves_count) * 2 (is_max_corner)
 QTABLE_PATH = Path("qtable.npy")
+
+# Hyperparameters for TD agent
+TD_WEIGHTS_PATH = Path("td_weights")
+TD_LEARNING_RATE = 0.0025
+TD_EPS_MIN = 0.001
+TD_EPS_DECAY = 0.9995
 
 # ── Platform-specific single-keypress reading ────────────────────────
 if sys.platform == "win32":
@@ -111,9 +118,58 @@ def train_qlearner(nb_episodes) -> Qlearner:
     agent.save_qtable(QTABLE_PATH)
     print(f"Saved qtable to {QTABLE_PATH}")
     return agent
-    
 
 
+def train_td(nb_episodes) -> TDAgent:
+    agent = TDAgent(
+        learning_rate=TD_LEARNING_RATE,
+        epsilon=1.0,
+        epsilon_min=TD_EPS_MIN,
+        epsilon_decay=TD_EPS_DECAY,
+        dynamic_lr=True,
+    )
+
+    env = Environment()
+
+    for episode in range(nb_episodes):
+        env.reset(options=False)
+        done  = False
+        score = 0
+
+        # Bootstrap: select first action before entering the loop
+        board_list    = env.board.to_list()
+        valid_actions = env.get_valid_actions()
+        action        = agent.select_action(board_list, valid_actions)
+        prev_after_board, _, prev_merge_score = compute_after_state(board_list, action)
+
+        while not done:
+            prev_valid_count = len(valid_actions)
+            _, _, done, score = env.step(action, prev_valid_count)
+
+            if not done:
+                board_list    = env.board.to_list()
+                valid_actions = env.get_valid_actions()
+                action        = agent.select_action(board_list, valid_actions)
+                curr_after_board, _, curr_merge_score = compute_after_state(board_list, action)
+                # Non-terminal update: prev → curr
+                agent.update(prev_after_board, prev_merge_score, curr_after_board, done=False)
+                prev_after_board = curr_after_board
+                prev_merge_score = curr_merge_score
+            else:
+                # Terminal update: last afterstate has no successor
+                agent.update(prev_after_board, prev_merge_score, None, done=True)
+
+        agent.decay_epsilon()
+        agent.episode_final_scores.append(score)
+
+        if (episode + 1) % 100 == 0:
+            recent = agent.episode_final_scores[-100:]
+            avg    = sum(recent) / len(recent)
+            print(f"Episode {episode+1}/{nb_episodes} | Avg Score: {avg:.0f} | Epsilon: {agent.epsilon:.4f}")
+
+    agent.save(TD_WEIGHTS_PATH)
+    print(f"Saved TD weights to {TD_WEIGHTS_PATH}")
+    return agent
 
 
 def main(agent_type) -> None:
@@ -143,11 +199,28 @@ def main(agent_type) -> None:
         agent = ExpectimaxAgent(depth=6)
 
     elif agent_type == "td":
-        #agent = ...
-        pass  # TODO: implement
+        # Check for the .npz file that savez_compressed produces
+        weights_file = TD_WEIGHTS_PATH.with_suffix('.npz')
+        if weights_file.exists():
+            agent = TDAgent(
+                learning_rate=0.0,
+                epsilon=0.0,
+                epsilon_min=0.0,
+                epsilon_decay=1.0,
+                dynamic_lr=False,   # no counts needed for inference
+            )
+            agent.load(TD_WEIGHTS_PATH)
+            print(f"Loaded TD weights from {weights_file}")
+        else:
+            agent = train_td(NUM_EPISODES)
+            plt.plot(agent.episode_final_scores)
+            plt.xlabel("Episode")
+            plt.ylabel("Score")
+            plt.title("TD-Learning (N-tuple network) 2048 Training")
+            plt.show()
     else:
         raise ValueError(f"Unknown agent type: {agent_type}")
-    
+
     # Play one game with the trained agent and render it
     env = Environment()
     done = False

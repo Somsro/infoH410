@@ -118,7 +118,7 @@ class Environment:
             # raise NotImplementedError("Expectimax state representation not implemented yet.")
         
         elif agent_type == "td":
-            raise NotImplementedError("TD learning state representation not implemented yet.")
+            return list(self.board.to_list())
         
         else:
             raise ValueError(f"Unknown agent type: {agent_type}")
