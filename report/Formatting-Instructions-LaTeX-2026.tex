@@ -92,22 +92,15 @@
 % nouns, adverbs, adjectives should be capitalized, including both words in hyphenated terms, while
 % articles, conjunctions, and prepositions are lower case unless they
 % directly follow a colon or long dash
-\title{AAAI Press Formatting Instructions \\for Authors Using \LaTeX{} --- A Guide}
+\title{Comparisons of different AI techniques on the game 2048}
 \author{
     %Authors
     % All authors must be in the same font size and format.
-    Written by AAAI Press Staff\textsuperscript{\rm 1}\thanks{With help from the AAAI Publications Committee.}\\
-    AAAI Style Contributions by Pater Patel Schneider,
-    Sunil Issar,\\
-    J. Scott Penberthy,
-    George Ferguson,
-    Hans Guesgen,
-    Francisco Cruz\equalcontrib,
-    Marc Pujol-Gonzalez\equalcontrib
+    Written by Denis Legue, Robin Marchand, Gabriel, Monwar Mahtab Hawlader (000514679) 
 }
 \affiliations{
     %Afiliations
-    \textsuperscript{\rm 1}Association for the Advancement of Artificial Intelligence\\
+    ULB\\
     % If you have multiple authors and multiple affiliations
     % use superscripts in text and roman font to identify them.
     % For example,
@@ -118,10 +111,8 @@
     % Hans Guesgen\textsuperscript{\rm 5}
     % Note that the comma should be placed after the superscript
 
-    1101 Pennsylvania Ave, NW Suite 300\\
-    Washington, DC 20004 USA\\
-    % email address must be in roman text type, not monospace or sans serif
-    proceedings-questions@aaai.org
+    INFO-H410\\
+
 %
 % See more examples next
 }
@@ -160,6 +151,7 @@
 % REMOVE THIS: bibentry
 % This is only needed to show inline citations in the guidelines document. You should not need it and can safely delete it.
 \usepackage{bibentry}
+\usepackage{float}
 % END REMOVE bibentry
 
 \begin{document}
@@ -168,14 +160,13 @@
 
 \begin{abstract}
 
+
 \end{abstract}
 
 % Uncomment the following to link to your code, datasets, an extended version or similar.
 % You must keep this block between (not within) the abstract and the main body of the paper.
 \begin{links}
-    \link{Code}{https://aaai.org/example/code}
-    \link{Datasets}{https://aaai.org/example/datasets}
-    \link{Extended version}{https://aaai.org/example/extended-version}
+    \link{GitHub Repository}{https://github.com/Somsro/infoH410}
 \end{links}
 
 \section{Introduction}
@@ -199,20 +190,30 @@ Two tiles with the same value that collide during a shift will merge into a tile
 A new tile with a value of 2 or 4 will then appear in a random empty spot on the board which makes future states only partially controllable by the agent.
 The objective of the agents is to achieve the highest score. The game ends when there are no more valid moves available.
 The fact that a new tile appears in a random empty spot on the board after each move makes the game stochastic and thus making it a good candidate for
-testing the performance of different AI techniques.  
+testing the performance of different AI techniques. \\
 
 
-The action space is defined as $A = \{up, down, left, right\}$ where only moves that modify the board are considered valid. 
-The state $s$ corresponds to the values and positions of all tiles on the grid.
-Depending on the approach, the reward $r$ can be constructed based on several features, such as the number of empty cell, monotonicity, 
-placement of the largest tile, and score the sum of the values of the merged tiles. A terminal state is reached when no legal action is available.
+% \noindent \textbf{Formal Representation}\\
+% The action space is defined as $A = \{up, down, left, right\}$ where only moves that modify the board are considered valid. 
+% The state $s$ corresponds to the values and positions of all tiles on the grid.
+% Depending on the approach, the reward $r$ can be constructed based on several features, such as the number of empty cell, monotonicity, 
+% placement of the largest tile, and score the sum of the values of the merged tiles. A terminal state is reached when no legal action is available.
 
-As there is a large number of possible states and the game is stochastic, it makes exhaustive search or exact tabular (as in Q-learning) methods infeasible.
+% As there is a large number of possible states and the game is stochastic, it makes exhaustive search or exact tabular (as in Q-learning) methods infeasible.
+
+\noindent \textbf{Formal Representation:} \\
+\textbf{State Space ($S$):} Values and grid positions of all tiles. \\
+\textbf{Actions ($A$):} $\{Up, Down, Left, Right\}$, restricted to moves that modify the board. \\
+\textbf{Reward ($r$):} Can be constructed based on several features (empty cells, monotonicity, and max tile placement). \\
+\textbf{Constraints:} Terminal state is reached when no legal actions remain. Tabular Q-learning and exhaustive search are infeasible due to the massive state space. \\
+\textbf{Probabilities:} Stochastic transitions $P(s' \mid s, a)$ dictate the game dynamics, preventing exact deterministic planning.
+
+
 
 
 
 \section{Methodologies}
-Three agents will be compared; Deep qleaner, Expectimax and an n-tuple network TD(0) learning agent.
+Three agents will be compared; Deep Q-Learning, Expectimax and an n-tuple network TD(0) learning agent.
 The three methods have each their own field of application and are based on different principles.
 Expectimax is a planning-based approach, deep Q-Learning is a deep reinforcement learning method that learns action values from experience
 meanwhile TD learning with function approximation is a lighter value-based alternative.  
@@ -221,44 +222,45 @@ planning, learning, the computational cost as well as performance of each method
 For each of the following approach, the states is encoded as a list of 16 integers, each representing the exponant $k$ such that the tile value in that cell is
 $2^k$. (For example, 16 is encoded as 4 since $2^4=16$ with the particularity that 0 represents an empty cell).
 The action space is the same for all agents and consists of the 4 possible moves: up, down, left and right encoded as integer values from 0 to 3.
-\subsection{Expectimax}
+\noindent \textbf{Approach: Expectimax} \\
 
-\subsection{Deep qleaner}
+\noindent \textbf{Approach: Deep Q-Learning (DQN)} \\
+\textbf{Logic:} Approximate the action value function (Q-value) using a deep neural network to bypass the exhaustive exploration of the state space. 
+The agent learns directly from experience via stochastic gradient descent on $(s, a, r, s')$ tuples, guided by a shaped reward system reflecting 2048 heuristics (tile merges, empty cells, monotonicity, and corner penalties). \\
+\textbf{Assumption:} The environment features a massive state space and stochastic transitions, rendering tabular methods infeasible. 
+While this model-free approach is good at capturing complex patterns, it assumes access to high computational power and massive amounts of training data (very long training sessions) to converge.
+\\
 
-\subsection{N-tuple network TD(0) learning agent}
-(A modifier encore prc pas convaincu)
+
+\noindent \textbf{Approach: N-tuple network TD(0) learning agent}\\
 Temporal-Difference learning with value function approximation provides a lighter alternative to Deep Q-Learning. 
 Instead of learning action values directly, this approach estimates the value of board after-states and updates this estimate by bootstrapping 
-from successor after-states. In our implementation, the value function is approximated using an N-tuple network composed of lookup tables defined over 
-several tile patterns and their symmetric variants. 
-LaTeXThis representation is well suited to 2048 because it captures local board structures while remaining significantly cheaper than deep neural approaches. 
-Compared with Deep Q-Learning, this method is simpler and more computationally efficient, although its performance depends strongly on the choice of 
-patterns and representation.
- 
-\begin{algorithm}[t]
+from successor after-states. In this implementation, the after-states represent the move without placing a new tile yet in order to estimate the value function.
+An error signal is computed based on the difference between the current value estimate and the observed reward plus the value of the next after-state. 
+The value function is approximated using an N-tuple network composed of lookup tables defined over several tile patterns and their symmetric variants. 
+
+\begin{algorithm}[h]
 \caption{Training procedure of the TD agent}
 \label{alg:td-training}
 \begin{algorithmic}[1]
 \Require Number of episodes $N$
-\State Initialize TD agent with N-tuple network $V_\theta$
+\State Initialize TD agent with N-tuple network $V\theta$
 \For{episode $= 1$ to $N$}
     \State Reset the environment
     \State Initialize empty trajectory path
     \State done $\leftarrow$ false
     \While{not done}
         \State Select an action using $\epsilon$-greedy exploration
-        \State Clone the environment and apply the action to obtain reward $r$
+        \State Clone the environment and apply the action to obtain the after-state and reward
         \State Execute the action in the real environment
-        \State Store the resulting after-state, reward, and terminal flag in the path
+        \State Store the after-state, reward, and terminal flag in the path
     \EndWhile
-    \For{each transition $(s, r, s', done)$ in the trajectory path}
-        \State Compute $v \leftarrow V_\theta(s)$
-        \If{done}
-            \State $\delta \leftarrow r - v$
-        \Else
-            \State $\delta \leftarrow r + V_\theta(s') - v$
-        \EndIf
-        \State Update the weights of $V_\theta$ using $\delta$
+    \State $target \leftarrow 0$
+    \For{each stored after-state $s$ in reverse order}
+        \State $v \leftarrow V\theta(s)$
+        \State $\delta \leftarrow target - v$
+        \State Update the weights of $V\theta$ using $\delta$
+        \State Update $target \leftarrow r + V\theta(s)$
     \EndFor
     \State Update $\epsilon \leftarrow \max(\epsilon_{\min}, \epsilon \cdot \lambda)$
 \EndFor
