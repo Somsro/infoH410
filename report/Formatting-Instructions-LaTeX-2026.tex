@@ -17,7 +17,7 @@
 %
 % These are recommended to typeset algorithms but not required. See the subsubsection on algorithms. Remove them if you don't have algorithms in your paper.
 \usepackage{algorithm}
-\usepackage{algorithmic}
+\usepackage{algpseudocode}
 
 %
 % These are are recommended to typeset listings but not required. See the subsubsection on listing. Remove this block if you don't have listings in your paper.
@@ -167,7 +167,7 @@
 \maketitle
 
 \begin{abstract}
-AAAI creates proceedings, working notes, and technical reports directly from electronic source furnished by the authors. To ensure that all papers in the publication have a uniform appearance, authors must adhere to the following instructions.
+
 \end{abstract}
 
 % Uncomment the following to link to your code, datasets, an extended version or similar.
@@ -180,75 +180,92 @@ AAAI creates proceedings, working notes, and technical reports directly from ele
 
 \section{Introduction}
 
-Congratulations on having a paper selected for inclusion in an AAAI Press proceedings or technical report! This document details the requirements necessary to get your accepted paper published using PDF\LaTeX{}. If you are using Microsoft Word, instructions are provided in a different document. AAAI Press does not support any other formatting software.
+In the course INFO-H410 Techniques of Artificial Intelligence at ULB, students are required to apply and compare different AI techniques to the same problem.
+The game chosen is 2048. 2048 is a single-player game on a $4\times4$ grid where the player has to combine tiles by shifting them in one of the four 
+possible directions: up, down, left and right.
+Each turn, a new tile with a value of 2 or 4 appears in an empty spot on the board. The player wins by creating a tile with the value of 2048, 
+but can continue playing to reach higher values. The game ends when there are no more valid moves available.\\
+The randomness of the games makes it a good candidate for testing the performance of different AI techniques.  
+Three agents will be compared; Deep qleaner, Expectimax and an n-tuple network TD learning agent.
+The goal will be to evaluate their performance (the final score reached) but also the computational cost to better understand the trade-offs between planning and leanred polcies.
 
-The instructions herein are provided as a general guide for experienced \LaTeX{} users. If you do not know how to use \LaTeX{}, please obtain assistance locally. AAAI cannot provide you with support and the accompanying style files are \textbf{not} guaranteed to work. If the results you obtain are not in accordance with the specifications you received, you must correct your source file to achieve the correct result.
+\section{Problem Formulation}
+The game 2048 is a sequential decision making problem with uncertainty.
+The state of the game is represented by the configuration of the board.
+The configuration of the board is a $4\times4$ grid where each cell can be empty or contain a tile with a value that is a power of 2.
+At each time step, the agent observes the current board configuration and selects in which direction to shift the tiles in one of the four 
+possible directions: up, down, left and right as long as there is at least one tile moving.
+Two tiles with the same value that collide during a shift will merge into a tile with the value of their sum.
+A new tile with a value of 2 or 4 will then appear in a random empty spot on the board which makes future states only partially controllable by the agent.
+The objective of the agents is to achieve the highest score. The game ends when there are no more valid moves available.
+The fact that a new tile appears in a random empty spot on the board after each move makes the game stochastic and thus making it a good candidate for
+testing the performance of different AI techniques.  
 
-These instructions are generic. Consequently, they do not include specific dates, page charges, and so forth. Please consult your specific written conference instructions for details regarding your submission. Please review the entire document for specific instructions that might apply to your particular situation. All authors must comply with the following:
 
-\begin{itemize}
-\item You must use the 2026 AAAI Press \LaTeX{} style file and the aaai2026.bst bibliography style files, which are located in the 2026 AAAI Author Kit (aaai2026.sty, aaai2026.bst).
-\item You must complete, sign, and return by the deadline the AAAI copyright form (unless directed by AAAI Press to use the AAAI Distribution License instead).
-\item You must read and format your paper source and PDF according to the formatting instructions for authors.
-\item You must submit your electronic files and abstract using our electronic submission form \textbf{on time.}
-\item You must pay any required page or formatting charges to AAAI Press so that they are received by the deadline.
-\item You must check your paper before submitting it, ensuring that it compiles without error, and complies with the guidelines found in the AAAI Author Kit.
-\end{itemize}
+The action space is defined as $A = \{up, down, left, right\}$ where only moves that modify the board are considered valid. 
+The state $s$ corresponds to the values and positions of all tiles on the grid.
+Depending on the approach, the reward $r$ can be constructed based on several features, such as the number of empty cell, monotonicity, 
+placement of the largest tile, and score the sum of the values of the merged tiles. A terminal state is reached when no legal action is available.
 
-\section{Copyright}
-All papers submitted for publication by AAAI Press must be accompanied by a valid signed copyright form. They must also contain the AAAI copyright notice at the bottom of the first page of the paper. There are no exceptions to these requirements. If you fail to provide us with a signed copyright form or disable the copyright notice, we will be unable to publish your paper. There are \textbf{no exceptions} to this policy. You will find a PDF version of the AAAI copyright form in the AAAI AuthorKit. Please see the specific instructions for your conference for submission details.
+As there is a large number of possible states and the game is stochastic, it makes exhaustive search or exact tabular (as in Q-learning) methods infeasible.
 
-\section{Formatting Requirements in Brief}
-We need source and PDF files that can be used in a variety of ways and can be output on a variety of devices. The design and appearance of the paper is strictly governed by the aaai style file (aaai2026.sty).
-\textbf{You must not make any changes to the aaai style file, nor use any commands, packages, style files, or macros within your own paper that alter that design, including, but not limited to spacing, floats, margins, fonts, font size, and appearance.} AAAI imposes requirements on your source and PDF files that must be followed. Most of these requirements are based on our efforts to standardize conference manuscript properties and layout. All papers submitted to AAAI for publication will be recompiled for standardization purposes. Consequently, every paper submission must comply with the following requirements:
 
-\begin{itemize}
-\item Your .tex file must compile in PDF\LaTeX{} --- (you may not include .ps or .eps figure files.)
-\item All fonts must be embedded in the PDF file --- including your figures.
-\item Modifications to the style file, whether directly or via commands in your document may not ever be made, most especially when made in an effort to avoid extra page charges or make your paper fit in a specific number of pages.
-\item No type 3 fonts may be used (even in illustrations).
-\item You may not alter the spacing above and below captions, figures, headings, and subheadings.
-\item You may not alter the font sizes of text elements, footnotes, heading elements, captions, or title information (for references and mathematics, please see the limited exceptions provided herein).
-\item You may not alter the line spacing of text.
-\item Your title must follow Title Case capitalization rules (not sentence case).
-\item \LaTeX{} documents must use the Times or Nimbus font package (you may not use Computer Modern for the text of your paper).
-\item No \LaTeX{} 209 documents may be used or submitted.
-\item Your source must not require use of fonts for non-Roman alphabets within the text itself. If your paper includes symbols in other languages (such as, but not limited to, Arabic, Chinese, Hebrew, Japanese, Thai, Russian and other Cyrillic languages), you must restrict their use to bit-mapped figures. Fonts that require non-English language support (CID and Identity-H) must be converted to outlines or 300 dpi bitmap or removed from the document (even if they are in a graphics file embedded in the document).
-\item Two-column format in AAAI style is required for all papers.
-\item The paper size for final submission must be US letter without exception.
-\item The source file must exactly match the PDF.
-\item The document margins may not be exceeded (no overfull boxes).
-\item The number of pages and the file size must be as specified for your event.
-\item No document may be password protected.
-\item Neither the PDFs nor the source may contain any embedded links or bookmarks (no hyperref or navigator packages).
-\item Your source and PDF must not have any page numbers, footers, or headers (no pagestyle commands).
-\item Your PDF must be compatible with Acrobat 5 or higher.
-\item Your \LaTeX{} source file (excluding references) must consist of a \textbf{single} file (use of the ``input" command is not allowed.
-\item Your graphics must be sized appropriately outside of \LaTeX{} (do not use the ``clip" or ``trim'' command) .
-\end{itemize}
 
-If you do not follow these requirements, your paper will be returned to you to correct the deficiencies.
+\section{Methodologies}
+Three agents will be compared; Deep qleaner, Expectimax and an n-tuple network TD(0) learning agent.
+The three methods have each their own field of application and are based on different principles.
+Expectimax is a planning-based approach, deep Q-Learning is a deep reinforcement learning method that learns action values from experience
+meanwhile TD learning with function approximation is a lighter value-based alternative.  
+Comparing them on the same problem will allow us to better understand the trade-offs between 
+planning, learning, the computational cost as well as performance of each method.
+For each of the following approach, the states is encoded as a list of 16 integers, each representing the exponant $k$ such that the tile value in that cell is
+$2^k$. (For example, 16 is encoded as 4 since $2^4=16$ with the particularity that 0 represents an empty cell).
+The action space is the same for all agents and consists of the 4 possible moves: up, down, left and right encoded as integer values from 0 to 3.
+\subsection{Expectimax}
 
-\section{What Files to Submit}
-You must submit the following items to ensure that your paper is published:
-\begin{itemize}
-\item A fully-compliant PDF file.
-\item Your \LaTeX{} source file submitted as a \textbf{single} .tex file (do not use the ``input" command to include sections of your paper --- every section must be in the single source file). (The only allowable exception is .bib file, which should be included separately).
-\item The bibliography (.bib) file(s).
-\item Your source must compile on our system, which includes only standard \LaTeX{} 2020 TeXLive support files.
-\item Only the graphics files used in compiling paper.
-\item The \LaTeX{}-generated files (e.g. .aux,  .bbl file, PDF, etc.).
-\end{itemize}
+\subsection{Deep qleaner}
 
-Your \LaTeX{} source will be reviewed and recompiled on our system (if it does not compile, your paper will be returned to you. \textbf{Do not submit your source in multiple text files.} Your single \LaTeX{} source file must include all your text, your bibliography (formatted using aaai2026.bst), and any custom macros.
+\subsection{N-tuple network TD(0) learning agent}
+(A modifier encore prc pas convaincu)
+Temporal-Difference learning with value function approximation provides a lighter alternative to Deep Q-Learning. 
+Instead of learning action values directly, this approach estimates the value of board after-states and updates this estimate by bootstrapping 
+from successor after-states. In our implementation, the value function is approximated using an N-tuple network composed of lookup tables defined over 
+several tile patterns and their symmetric variants. 
+LaTeXThis representation is well suited to 2048 because it captures local board structures while remaining significantly cheaper than deep neural approaches. 
+Compared with Deep Q-Learning, this method is simpler and more computationally efficient, although its performance depends strongly on the choice of 
+patterns and representation.
+ 
+\begin{algorithm}[t]
+\caption{Training procedure of the TD agent}
+\label{alg:td-training}
+\begin{algorithmic}[1]
+\Require Number of episodes $N$
+\State Initialize TD agent with N-tuple network $V_\theta$
+\For{episode $= 1$ to $N$}
+    \State Reset the environment
+    \State Initialize empty trajectory path
+    \State done $\leftarrow$ false
+    \While{not done}
+        \State Select an action using $\epsilon$-greedy exploration
+        \State Clone the environment and apply the action to obtain reward $r$
+        \State Execute the action in the real environment
+        \State Store the resulting after-state, reward, and terminal flag in the path
+    \EndWhile
+    \For{each transition $(s, r, s', done)$ in the trajectory path}
+        \State Compute $v \leftarrow V_\theta(s)$
+        \If{done}
+            \State $\delta \leftarrow r - v$
+        \Else
+            \State $\delta \leftarrow r + V_\theta(s') - v$
+        \EndIf
+        \State Update the weights of $V_\theta$ using $\delta$
+    \EndFor
+    \State Update $\epsilon \leftarrow \max(\epsilon_{\min}, \epsilon \cdot \lambda)$
+\EndFor
+\Return trained agent
+\end{algorithmic}
+\end{algorithm}
 
-Your files should work without any supporting files (other than the program itself) on any computer with a standard \LaTeX{} distribution.
-
-\textbf{Do not send files that are not actually used in the paper.} Avoid including any files not needed for compiling your paper, including, for example, this instructions file, unused graphics files, style files, additional material sent for the purpose of the paper review, intermediate build files and so forth.
-\textbf{Obsolete style files.} The commands for some common packages (such as some used for algorithms), may have changed. Please be certain that you are not compiling your paper using old or obsolete style files.
-
-\textbf{Final Archive.} Place your source files in a single archive which should be compressed using .zip. The final file size may not exceed 10 MB.
-Name your source file with the last (family) name of the first author, even if that is not you.
 
 
 \section{Using \LaTeX{} to Format Your Paper}
@@ -629,16 +646,16 @@ In \LaTeX{} algorithms may be typeset using the {\tt algorithm} and {\tt algorit
 \textbf{Parameter}: Optional list of parameters\\
 \textbf{Output}: Your algorithm's output
 \begin{algorithmic}[1] %[1] enables line numbers
-\STATE Let $t=0$.
-\WHILE{condition}
-\STATE Do some action.
-\IF {conditional}
-\STATE Perform task A.
-\ELSE
-\STATE Perform task B.
-\ENDIF
-\ENDWHILE
-\STATE \textbf{return} solution
+\State Let $t=0$.
+\While{condition}
+\State Do some action.
+\If {conditional}
+\State Perform task A.
+\Else
+\State Perform task B.
+\EndIf
+\EndWhile
+\State \textbf{return} solution
 \end{algorithmic}
 \end{algorithm}
 
