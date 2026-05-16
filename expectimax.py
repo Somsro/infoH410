@@ -2,6 +2,7 @@ from PARAMETERS import INFINITY, PROB_CUTOFF
 
 class ExpectimaxAgent:
     def __init__(self, depth):
+        self.agent_type = "expectimax"
         self.depth = depth
         self.episode_final_scores = []
         self.episode_durations = []

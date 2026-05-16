@@ -4,13 +4,17 @@ from TDAgent import TDAgent, train_td
 from expectimax import ExpectimaxAgent
 from tracking import plot_tracking
 from PARAMETERS import *
+from DQNenv import Env2048
+from DQNAgent import DQNAgent, train_dqn
 
 def main(agent_type) -> None:
 
     if agent_type == "expectimax":
+        env = Environment()
         agent = ExpectimaxAgent(depth=EXPECTIMAX_DEPTH)
 
     elif agent_type == "td":
+        env = Environment()
         weights_file = TD_WEIGHTS_PATH.with_suffix('.npz')
         if weights_file.exists():
             agent = TDAgent(
@@ -26,28 +30,45 @@ def main(agent_type) -> None:
             agent = train_td(NUM_EPISODES)
             plot_tracking(agent.episode_step_counts, agent.episode_final_scores, windows_count=20, filename="td_learning_tracking_data.png")
 
-    elif agent_type == "dql":
-        print("DQL agent not implemented yet.") # TODO
-        sys.exit(1)
+    elif agent_type == "dqn":
+        env = Env2048()
+        dqn_file = DQN_MODEL_PATH
+        if dqn_file.exists():
+            agent = DQNAgent(
+                env,
+                lr=0,
+                gamma=0,
+                eps_start=0,
+                eps_end=0,
+                eps_decay=0,
+                tau=0
+            )
+            agent.load(dqn_file)
+            print(f"Loaded DQN model from {dqn_file}")
+        else:
+            agent = train_dqn(env)
+            plot_tracking(agent.episode_step_counts, agent.episode_final_scores, windows_count=20, filename="dqn_learning_tracking_data.png")
 
     else:
         raise ValueError(f"Unknown agent type: {agent_type}")
 
     # Play one game with the trained agent and render it
-    env = Environment()
     done = False
     env.reset()
     
     while not done: # done is set to True in env.step() when the game is over
 
         # List of useful getters 
-        state = env.get_state(agent_type) # get the current state for the agent
+        state = env.get_state(agent) # get the current state for the agent
 
         # Agents take actions based on the state and valid moves
-        action = agent.select_action(state) 
-
-        # Step in the environment
-        _, done = env.step(action)
+        if agent_type == "dqn":
+            action = agent.select_action(state, env.get_valid_actions())
+            _, _, done, _ = env.step(action)
+            action = int(action) 
+        else:
+            action = agent.select_action(state) 
+            _, done = env.step(action)
 
         # Render the new state of the game
         if (not done) :

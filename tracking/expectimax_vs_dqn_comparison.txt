@@ -1,0 +1,24 @@
+=== Statistical Comparison: expectimax_test_statistics.npz vs dqn_test_statistics.npz ===
+
+Category: STEP_COUNTS
+  Alg 1 Mean: 1235.78 | Alg 2 Mean: 550.58
+  Student's t-test:
+    - Statistic: 11.8853
+    - p-value:   1.6786e-22
+  Wilcoxon / Mann-Whitney U test:
+    - Statistic: 8831.5000
+    - p-value:   7.9226e-21
+  => Conclusion: The difference is STATISTICALLY SIGNIFICANT (p < 0.05).
+------------------------------------------------------------
+
+Category: FINAL_SCORES
+  Alg 1 Mean: 2721.04 | Alg 2 Mean: 1216.38
+  Student's t-test:
+    - Statistic: 11.8630
+    - p-value:   1.8816e-22
+  Wilcoxon / Mann-Whitney U test:
+    - Statistic: 8828.0000
+    - p-value:   8.5922e-21
+  => Conclusion: The difference is STATISTICALLY SIGNIFICANT (p < 0.05).
+------------------------------------------------------------
+

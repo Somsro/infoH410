@@ -151,6 +151,8 @@ class TDAgent:
         self.epsilon_min   = epsilon_min
         self.epsilon_decay = epsilon_decay
 
+        self.agent_type = "td"
+
         self.episode_final_scores = []
         self.episode_durations = []
         self.episode_step_counts = []

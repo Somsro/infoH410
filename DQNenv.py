@@ -2,6 +2,8 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 from board2048_ext import Board
+from time import time
+from DQNutils import process_state
 
 class Env2048(gym.Env):
     """Gymanisum environment for the 2048 game."""
@@ -20,17 +22,22 @@ class Env2048(gym.Env):
             dtype=np.int32
         )
         
-        self.board = None
+        self.board = Board()
 
-        self.consecutive_invalid_moves = 0
+        self.start_time = time()
+        self.step_count = 0
 
-    def get_score(self, board):
-        return sum((2**v if v > 0 else 0) for v in board.to_list())
+    def get_score(self):
+        return sum((2**v if v > 0 else 0) for v in self.board.to_list())
 
     def _get_obs(self):
         """Takes the current board state and converts it into a 4x4 NumPy array of integers."""
         board_list = self.board.to_list()
         return np.array(board_list, dtype=np.int32).reshape((4, 4))
+    
+    def get_state(self, agent):
+        """Returns the current state of the environment as a 4x4 NumPy array."""
+        return process_state(self._get_obs(), agent.device)
 
     # Create a new board at the start of each episode
     def reset(self, seed=None, options=None):
@@ -41,8 +48,14 @@ class Env2048(gym.Env):
         
         obs = self._get_obs()
         info = {}
+
+        self.step_count = 0
+        self.start_time = time()
         
         return obs, info
+    
+    def get_valid_actions(self):
+        return [i for i in range(4) if self.unwrapped.board.is_move_valid(i)]
 
     # Step function: apply action, calculate reward, check for termination
     def step(self, action):
@@ -54,9 +67,7 @@ class Env2048(gym.Env):
         terminated = False
         truncated = False
                     
-        
         if merge_reward < 0 :
-            
             # Penalty for invalid move (it shouldn't happen as there is a mask for invalid actions, but we add it just in case to encourage the agent to avoid invalid moves)
             reward = -4
             
@@ -84,18 +95,24 @@ class Env2048(gym.Env):
                 
                 # Sum all the components to get the final reward for this step
                 reward = reward_base + empty_bonus + mono_bonus + corner_penalty
-            
-        return self._get_obs(), reward, terminated, truncated, {}
-        
 
-    def render(self):
-        """Displays the board in the console."""
-        if self.board is None:
-            return
+        self.step_count += 1
             
-        obs = self._get_obs()
-        print("-" * 25)
-        for row in obs:
-            row_vals = [2**val if val > 0 else 0 for val in row]
-            print(f"| {row_vals[0]:^4} | {row_vals[1]:^4} | {row_vals[2]:^4} | {row_vals[3]:^4} |")
-        print("-" * 25)
+        return self._get_obs(), reward, terminated, truncated
+
+    def get_duration(self):
+        return time() - self.start_time
+    
+    def get_step_count(self):
+        return self.step_count
+
+    def render(self, message: str = "", over: bool = False) -> None:
+        representation = [2**self.board.to_list()[i] if self.board.to_list()[i] > 0 else "   ." for i in range(16)]
+        for i in range(4):
+            row = representation[i*4:(i+1)*4]
+            print(' '.join(f"{v:4}" for v in row))
+        if message:
+            print(message)
+        if over:
+            return
+        print("Waiting for next agent move...  •  Ctrl-C to quit")

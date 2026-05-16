@@ -1,0 +1,35 @@
+=== Statistical Comparison: td_test_statistics.npz vs dqn_test_statistics.npz ===
+
+Category: STEP_COUNTS
+  Alg 1 Mean: 1136.59 | Alg 2 Mean: 550.58
+  Student's t-test:
+    - Statistic: 11.6559
+    - p-value:   2.1231e-22
+  Wilcoxon / Mann-Whitney U test:
+    - Statistic: 8985.0000
+    - p-value:   2.1226e-22
+  => Conclusion: The difference is STATISTICALLY SIGNIFICANT (p < 0.05).
+------------------------------------------------------------
+
+Category: DURATIONS
+  Alg 1 Mean: 0.06 | Alg 2 Mean: 0.51
+  Student's t-test:
+    - Statistic: -22.6476
+    - p-value:   1.3137e-41
+  Wilcoxon / Mann-Whitney U test:
+    - Statistic: 9.0000
+    - p-value:   3.3569e-34
+  => Conclusion: The difference is STATISTICALLY SIGNIFICANT (p < 0.05).
+------------------------------------------------------------
+
+Category: FINAL_SCORES
+  Alg 1 Mean: 2503.28 | Alg 2 Mean: 1216.38
+  Student's t-test:
+    - Statistic: 11.6660
+    - p-value:   1.9208e-22
+  Wilcoxon / Mann-Whitney U test:
+    - Statistic: 8990.5000
+    - p-value:   1.8600e-22
+  => Conclusion: The difference is STATISTICALLY SIGNIFICANT (p < 0.05).
+------------------------------------------------------------
+

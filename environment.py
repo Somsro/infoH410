@@ -27,7 +27,7 @@ class Environment:
     def is_done(self):
         return len(self.get_valid_actions()) == 0
 
-    def reset(self, seed=None, options=None):
+    def reset(self, options=None):
         self.board = Board()
         observation = np.array(self.board.to_list(), dtype=np.int64)
         self.done = False
@@ -103,25 +103,11 @@ class Environment:
         return reward
     
     # Logic functions
-    def get_state(self, agent_type):
-        if agent_type == "qlearner":
-            empty_count = self.get_empty_count()
-            max_log_tile = self.get_max_log_tile()
-            if (max_log_tile > 13): # if the max tile is greater than 8192, we consider it as 8192 since we want to limit the state space and it doesn't matter for the learning process (the agent just needs to know that it has reached a very high tile)
-                raise NotImplementedError("State representation for qlearner does not support max_log_tile > 13 (tile 8192)")
-            is_max_corner = self.is_max_corner()
-            valid_moves_count = len(self.get_valid_actions())
-
-            state = empty_count
-            state = state * 14 + max_log_tile # 14 bc max_log_tile can be from 0 to 13 (for tile 8192)
-            state = state * 5 + valid_moves_count
-            state = state * 2 + int(is_max_corner)
-
-            return state
+    def get_state(self, agent):
+        agent_type = agent.agent_type
         
-        elif agent_type == "expectimax":
+        if agent_type == "expectimax":
             return self
-            # raise NotImplementedError("Expectimax state representation not implemented yet.")
         
         elif agent_type == "td":
             return self

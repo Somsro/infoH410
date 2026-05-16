@@ -10,8 +10,8 @@ expectimax:
 td:
 	python game.py td
 
-dql:
-	python game.py dql
+dqn:
+	python game.py dqn
 
 testExpectimax:
 	python test.py expectimax
@@ -19,5 +19,8 @@ testExpectimax:
 testTD:
 	python test.py td
 
-testDQL:
-	python test.py dql
+testDQN:
+	python test.py dqn
+
+stats:
+	python stats.py

@@ -102,7 +102,13 @@ def test_statistics(agent, filename="testing_statistics.txt"):
             f.write("\n")
 
 def save_test_statistics(agent, filename="testing_statistics.npz"):
-    stats = compute_statistics(agent.episode_step_counts, agent.episode_durations, agent.episode_final_scores)
     filename = os.path.join("tracking", filename)
-    np.savez(filename, **stats)
-    print(f"Testing statistics saved to {filename}")
+
+    np.savez(
+        filename, 
+        step_counts=np.array(agent.episode_step_counts),
+        durations=np.array(agent.episode_durations),
+        final_scores=np.array(agent.episode_final_scores)
+    )
+    
+    print(f"Testing raw histories saved to {filename}")
