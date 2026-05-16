@@ -18,9 +18,9 @@ QTABLE_PATH = Path("qtable.npy")
 
 # Hyperparameters for TD agent
 TD_WEIGHTS_PATH = Path("td_weights")
-TD_LEARNING_RATE = 0.0025
-TD_EPS_MIN = 0.001
-TD_EPS_DECAY = 0.9995
+TD_LEARNING_RATE = 0.1
+TD_EPS_MIN = 0.01
+TD_EPS_DECAY = 0.9999
 
 # Expectimax hyperparameters
 EXPECTIMAX_DEPTH = 5
@@ -127,39 +127,30 @@ def train_td(nb_episodes) -> TDAgent:
         epsilon_decay=TD_EPS_DECAY,
         dynamic_lr=True,
     )
-
     env = Environment()
 
     for episode in range(nb_episodes):
         env.reset(options=False)
         done = False
+        path = []
 
-        # Get initial after-state
-        action = agent.select_action(env)
-        after_env = env.clone()
-        after_env.simple_step(action)
-        
         while not done:
-            # Real step places random tile
-            _, done = env.step(action) 
+            action      = agent.select_action(env)
+            after_env   = env.clone()
+            reward      = after_env.simple_step(action)
+            
+            board_list  = after_env.board.to_list()
+            _, done     = env.step(action)
+            path.append((board_list, reward, done))
 
-            if not done:
-                next_action = agent.select_action(env)
-                next_after_env = env.clone()
-                # Get the reward that results from the NEXT move
-                next_reward = next_after_env.simple_step(next_action)
-                
-                # Update current after-state using NEXT reward and NEXT after-state
-                agent.update(after_env, next_reward, next_after_env, done=False)
-                
-                after_env = next_after_env
-                action = next_action
-            else:
-                agent.update(after_env, 0, None, done=True)
+        # Learn backwards through the episode
+        agent.learn_from_episode(path)
+
+        # Clear the path explicitly to help Python's garbage collection
+        path.clear() 
 
         agent.decay_epsilon()
         agent.episode_final_scores.append(env.get_score())
-        # env.render(f"Episode {episode+1} ended with score: {env.get_score()}", over=True)
 
         if (episode + 1) % 100 == 0:
             recent = agent.episode_final_scores[-100:]
@@ -167,7 +158,6 @@ def train_td(nb_episodes) -> TDAgent:
             print(f"Episode {episode+1}/{nb_episodes} | Avg Score: {avg:.0f} | Epsilon: {agent.epsilon:.4f}")
 
     agent.save(TD_WEIGHTS_PATH)
-    print(f"Saved TD weights to {TD_WEIGHTS_PATH}")
     return agent
 
 

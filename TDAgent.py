@@ -96,22 +96,22 @@ class NTupleNetwork:
         (0, 1, 2, 3, 4, 5),
         (4, 5, 6, 7, 8, 9),
         (0, 1, 2, 4, 5, 6),
-        (0, 1, 2, 3, 4, 8),
-        (0, 1, 4, 5, 8, 9),
-        (1, 2, 5, 6, 9, 10),
+        (4, 5, 6, 8, 9, 10),
     ]
+
 
     def __init__(self, dynamic_lr=True, learning_rate=0.0025):
         self.patterns    = self._generate_symmetric_patterns()
         self.dynamic_lr  = dynamic_lr
         self.alpha       = learning_rate
+        self.alpha_floor = 0.0125
         lut_size         = self.NUM_VALUES ** 6
 
         self.luts = [np.zeros(lut_size, dtype=np.float32) for _ in self.patterns]
 
         if self.dynamic_lr:
             self.counts     = [np.zeros(lut_size, dtype=np.uint32) for _ in self.patterns]
-            self.MIN_VISITS = 50   # trust early estimates less — avoids wild updates
+            self.MIN_VISITS = 100
 
     # Symmetry helpers
 
@@ -160,21 +160,19 @@ class NTupleNetwork:
                    for lut, p in zip(self.luts, self.patterns))
 
     def update_weights(self, board, td_error):
-        """
-        Update each active lookup table entry using td_error directly.
-
-        Dynamic LR : lr = 1 / max(count, MIN_VISITS) per entry.
-        Fixed LR   : lr = alpha / n_base_patterns.
-        """
-        n = len(self.BASE_PATTERNS)
+        n_iso = len(self.patterns) // len(self.BASE_PATTERNS)
+        total = 0.0
         for i, (lut, p) in enumerate(zip(self.luts, self.patterns)):
             idx = self._index(board, p)
             if self.dynamic_lr:
                 self.counts[i][idx] += 1
-                lr = 1.0 / max(self.counts[i][idx], self.MIN_VISITS)
+                lr = max(1.0 / max(self.counts[i][idx], self.MIN_VISITS),
+                        self.alpha_floor)
             else:
-                lr = self.alpha / n
+                lr = self.alpha / n_iso
             lut[idx] += lr * td_error
+            total += float(lut[idx])
+        return total
 
     # Persistence
 
@@ -220,25 +218,22 @@ class TDAgent:
         self.episode_final_scores = []
 
     def select_action(self, env):
-        """
-        Pick an action using epsilon-greedy after-state evaluation.
-        """
         valid_actions = env.get_valid_actions()
-        if not valid_actions: return None
+        if not valid_actions:
+            return None
 
         if np.random.random() < self.epsilon:
             return np.random.choice(valid_actions)
 
         best_action = valid_actions[0]
-        best_value = -float('inf')
+        best_value  = -float('inf')
         for action in valid_actions:
             new_env = env.clone()
-            reward = new_env.simple_step(action)
-            value = self.network.evaluate(new_env.board.to_list())
-            total_value = value + float(reward)
-            
-            if total_value > best_value:
-                best_value  = total_value
+            reward  = float(new_env.simple_step(action))
+            # reward + V(afterstate) matches the reference select_best_move
+            value   = reward + self.network.evaluate(new_env.board.to_list())
+            if value > best_value:
+                best_value  = value
                 best_action = action
         return best_action
 
@@ -267,6 +262,17 @@ class TDAgent:
 
         self.network.update_weights(env.board.to_list(), td_error)
         return td_error
+    
+    def learn_from_episode(self, path):
+        """
+        Backward TD update through the full episode path.
+        path: list of (after_state_list, reward, done) in forward order.
+        """
+        target = 0.0
+        for board_list, reward, done in reversed(path[:-1]):
+            v_current  = self.network.evaluate(board_list)
+            td_error   = target - v_current
+            target     = float(reward) + self.network.update_weights(board_list, td_error)
 
     def decay_epsilon(self):
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
