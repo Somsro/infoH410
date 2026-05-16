@@ -1,7 +1,6 @@
 import numpy as np
 from board2048_ext import Board
 from time import time
-# from your_env_lib import ParallelEnv   # décommentez selon votre implémentation de ParallelEnv
 
 class Environment:
     metadata = {"render_modes": ["human"]}
@@ -11,12 +10,14 @@ class Environment:
         self.agent = "player"
         self.possible_agents = [self.agent]
         self.start_time = time()
+        self.step_count = 0
 
     def clone(self):
         new_env = Environment()
         new_env.start_time = self.start_time
         new_env.agent = self.agent
         new_env.possible_agents = self.possible_agents
+        new_env.step_count = self.step_count
         new_env.board = self.board.clone()
         return new_env
     
@@ -33,6 +34,7 @@ class Environment:
         self.truncated = False
         self.score = 0
         self.start_time = time()
+        self.step_count = 0
         if options :
             self.render("New game! Make your first move.")
         return observation
@@ -128,32 +130,15 @@ class Environment:
             raise ValueError(f"Unknown agent type: {agent_type}")
 
     def step(self, action: int):
-        # prev_score = self.get_score()
-        # prev_empty_count = self.get_empty_count()
-        # prev_max_log_tile = self.get_max_log_tile()
-
         merge_value = self.board.sweep(int(action))
         terminated = False
         if merge_value >= 0:
             self.board.place_tile()
             self.get_valid_actions()
             terminated = self.get_valid_actions() == []
-
-        # if moved:
-        #     placed = bool(self.board.place_tile()) # place_tile() returns False if it cannot place a new tile, which means the game is over
-        #     curr_score = self.get_score()
-        #     reward = self.calculate_reward(prev_empty_count, self.get_empty_count(), prev_max_log_tile, self.get_max_log_tile(), prev_valid_moves_count, len(self.get_valid_actions()), self.is_max_corner())
-        #     if not placed:
-        #         reward = -50.0
-        #         terminated = True
-        # else:
-        #     reward = -100.0  # Heavy penalty for invalid moves (for qlearners it souhldn't happen since we only give valid moves)
-        #     curr_score = prev_score
+            self.step_count += 1
 
         self.done = terminated
-        # self.score = curr_score
-
-        # return observation, reward, terminated, curr_score
         return merge_value, terminated
     
     def simple_step(self, action: int):
@@ -164,6 +149,9 @@ class Environment:
 
     def get_duration(self):
         return time() - self.start_time
+    
+    def get_step_count(self):
+        return self.step_count
 
     def render(self, message: str = "", over: bool = False) -> None:
         representation = [2**self.board.to_list()[i] if self.board.to_list()[i] > 0 else "   ." for i in range(16)]

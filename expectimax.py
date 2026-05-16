@@ -1,9 +1,11 @@
-INFINITY = int(1e9)
-PROB_CUTOFF = 1e-4
+from PARAMETERS import INFINITY, PROB_CUTOFF
 
 class ExpectimaxAgent:
     def __init__(self, depth):
         self.depth = depth
+        self.episode_final_scores = []
+        self.episode_durations = []
+        self.episode_step_counts = []
 
     def expectimax(self, env, depth, is_chance_node, prob=1.0):
         if depth == 0 or env.is_done() or prob < PROB_CUTOFF:

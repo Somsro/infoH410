@@ -1,72 +1,8 @@
 import numpy as np
 from pathlib import Path
-
-def _slide_row_left(row):
-    """
-    Merge and slide a row (log2-encoded values) to the left.
-    Returns (merged_row, merge_score) where merge_score = sum of new merged tile values.
-    E.g. two tiles of log2-value 3 (=8) merge into log2-value 4 (=16), contributing 16 to the score.
-    """
-    tiles = [t for t in row if t != 0]
-    result, score = [], 0
-    i = 0
-    while i < len(tiles):
-        if i + 1 < len(tiles) and tiles[i] == tiles[i + 1]:
-            merged = tiles[i] + 1          # log2(2x) = log2(x) + 1
-            result.append(merged)
-            score += 2 ** merged           # actual tile value earned
-            i += 2
-        else:
-            result.append(tiles[i])
-            i += 1
-    result += [0] * (4 - len(result))
-    return result, score
-
-def compute_after_state(board_list, action):
-    """
-    Simulate a sweep without placing a new tile (after-state computation).
-
-    board_list : flat list of 16 log2-encoded tile values (0 = empty).
-    action     : 0=up, 1=right, 2=down, 3=left
-    Returns    : (after_board_list, moved, merge_score)
-                 merge_score is the raw 2048 game score earned by this sweep
-                 (sum of all newly merged tile values).
-    """
-    b = [list(board_list[r * 4:(r + 1) * 4]) for r in range(4)]
-    total_score = 0
-
-    if action == 3:  # Left
-        nb = []
-        for r in range(4):
-            row, s = _slide_row_left(b[r])
-            nb.append(row)
-            total_score += s
-    elif action == 1:  # Right: reverse row, slide left, reverse back
-        nb = []
-        for r in range(4):
-            row, s = _slide_row_left(b[r][::-1])
-            nb.append(row[::-1])
-            total_score += s
-    elif action == 0:  # Up: transpose, slide left, transpose back
-        cols = [[b[r][c] for r in range(4)] for c in range(4)]
-        sc = []
-        for c in range(4):
-            col, s = _slide_row_left(cols[c])
-            sc.append(col)
-            total_score += s
-        nb = [[sc[c][r] for c in range(4)] for r in range(4)]
-    else:             # Down: transpose, slide right, transpose back
-        cols = [[b[r][c] for r in range(4)] for c in range(4)]
-        sc = []
-        for c in range(4):
-            col, s = _slide_row_left(cols[c][::-1])
-            sc.append(col[::-1])
-            total_score += s
-        nb = [[sc[c][r] for c in range(4)] for r in range(4)]
-
-    flat = [nb[r][c] for r in range(4) for c in range(4)]
-    return flat, flat != list(board_list), total_score
-
+from environment import Environment
+from PARAMETERS import TD_LEARNING_RATE, TD_EPS_MIN, TD_EPS_DECAY, TD_WEIGHTS_PATH
+from tracking import save_tracking
 
 class NTupleNetwork:
     """
@@ -217,6 +153,7 @@ class TDAgent:
 
         self.episode_final_scores = []
         self.episode_durations = []
+        self.episode_step_counts = []
 
     def select_action(self, env):
         valid_actions = env.get_valid_actions()
@@ -231,7 +168,6 @@ class TDAgent:
         for action in valid_actions:
             new_env = env.clone()
             reward  = float(new_env.simple_step(action))
-            # reward + V(afterstate) matches the reference select_best_move
             value   = reward + self.network.evaluate(new_env.board.to_list())
             if value > best_value:
                 best_value  = value
@@ -287,3 +223,47 @@ class TDAgent:
 
     def load(self, filepath):
         self.network.load(filepath)
+
+def train_td(nb_episodes) -> TDAgent:
+    agent = TDAgent(
+        learning_rate=TD_LEARNING_RATE,
+        epsilon=1.0,
+        epsilon_min=TD_EPS_MIN,
+        epsilon_decay=TD_EPS_DECAY,
+        dynamic_lr=True,
+    )
+    env = Environment()
+
+    for episode in range(nb_episodes):
+        env.reset(options=False)
+        done = False
+        path = []
+
+        while not done:
+            action      = agent.select_action(env)
+            after_env   = env.clone()
+            reward      = after_env.simple_step(action)
+            
+            board_list  = after_env.board.to_list()
+            _, done     = env.step(action)
+            path.append((board_list, reward, done))
+
+        # Learn backwards through the episode
+        agent.learn_from_episode(path)
+
+        # Clear the path explicitly to help Python's garbage collection
+        path.clear() 
+
+        agent.decay_epsilon()
+        agent.episode_final_scores.append(env.get_score())
+        agent.episode_durations.append(env.get_duration())
+        agent.episode_step_counts.append(env.get_step_count())
+
+        if (episode + 1) % 100 == 0:
+            recent = agent.episode_final_scores[-100:]
+            avg    = sum(recent) / len(recent)
+            print(f"Episode {episode+1}/{nb_episodes} | Avg Score: {avg:.0f} | Epsilon: {agent.epsilon:.4f}")
+
+    agent.save(TD_WEIGHTS_PATH)
+    save_tracking(agent.episode_step_counts, agent.episode_durations, agent.episode_final_scores, "td_learning_tracking_data.npz")
+    return agent
