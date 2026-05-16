@@ -5,6 +5,7 @@ from qleaners import Qlearner
 from TDAgent import TDAgent
 import matplotlib.pyplot as plt
 from expectimax import ExpectimaxAgent
+from tracking import plot_tracking, save_tracking
 
 #Training hyperparameters
 NUM_EPISODES = 50000
@@ -23,43 +24,7 @@ TD_EPS_MIN = 0.01
 TD_EPS_DECAY = 0.9999
 
 # Expectimax hyperparameters
-EXPECTIMAX_DEPTH = 5
-
-# ── Platform-specific single-keypress reading ────────────────────────
-if sys.platform == "win32":
-    import msvcrt
-
-    def get_arrow() -> int | None:
-        """Returns 0=up 1=right 2=down 3=left or None for other keys."""
-        ch = msvcrt.getch()
-        if ch == b'\xe0':
-            ch = msvcrt.getch()
-            return {b'H': 0, b'M': 1, b'P': 2, b'K': 3}.get(ch)
-        if ch == b'\x03':
-            raise KeyboardInterrupt
-        return None
-else:
-    import tty
-    import termios
-
-    def get_arrow() -> int | None:
-        """Returns 0=up 1=right 2=down 3=left or None for other keys."""
-        fd = sys.stdin.fileno()
-        old = termios.tcgetattr(fd)
-        try:
-            tty.setraw(fd)
-            ch = sys.stdin.read(1)
-            if ch == '\x03':
-                raise KeyboardInterrupt
-            if ch == '\x1b':
-                ch2 = sys.stdin.read(1)
-                ch3 = sys.stdin.read(1)
-                if ch2 == '[':
-                    return {'A': 0, 'C': 1, 'B': 2, 'D': 3}.get(ch3)
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old)
-        return None
-
+EXPECTIMAX_DEPTH = 6
 
 # ── Display ──────────────────────────────────────────────────────────
 
@@ -151,6 +116,7 @@ def train_td(nb_episodes) -> TDAgent:
 
         agent.decay_epsilon()
         agent.episode_final_scores.append(env.get_score())
+        agent.episode_durations.append(env.get_duration())
 
         if (episode + 1) % 100 == 0:
             recent = agent.episode_final_scores[-100:]
@@ -158,6 +124,7 @@ def train_td(nb_episodes) -> TDAgent:
             print(f"Episode {episode+1}/{nb_episodes} | Avg Score: {avg:.0f} | Epsilon: {agent.epsilon:.4f}")
 
     agent.save(TD_WEIGHTS_PATH)
+    save_tracking(agent.episode_durations, agent.episode_final_scores, "td_learning_tracking_data.npz")
     return agent
 
 
@@ -188,7 +155,6 @@ def main(agent_type) -> None:
         agent = ExpectimaxAgent(depth=EXPECTIMAX_DEPTH)
 
     elif agent_type == "td":
-        # Check for the .npz file that savez_compressed produces
         weights_file = TD_WEIGHTS_PATH.with_suffix('.npz')
         if weights_file.exists():
             agent = TDAgent(
@@ -202,11 +168,7 @@ def main(agent_type) -> None:
             print(f"Loaded TD weights from {weights_file}")
         else:
             agent = train_td(NUM_EPISODES)
-            plt.plot(agent.episode_final_scores)
-            plt.xlabel("Episode")
-            plt.ylabel("Score")
-            plt.title("TD-Learning (N-tuple network) 2048 Training")
-            plt.show()
+            plot_tracking(agent.episode_durations, agent.episode_final_scores, "td_learning_tracking_data.png")
     else:
         raise ValueError(f"Unknown agent type: {agent_type}")
 
@@ -219,17 +181,12 @@ def main(agent_type) -> None:
 
         # List of useful getters 
         state = env.get_state(agent_type) # get the current state for the agent
-        # valid_moves = env.get_valid_actions() # get the valid moves for the current state (will always return at least 1 since done would be True otherwise)
 
         # Agents take actions based on the state and valid moves
         action = agent.select_action(state) 
 
         # Step in the environment
-        reward, done = env.step(action) #reward = score difference after taking the action.
-
-        # List of useful getters
-        # new_state = env.get_state(agent_type) # get the new state after taking the action
-        # next_valid_actions = env.get_valid_actions() # get the valid moves for the new state (will always return at least 1 since done would be True otherwise)
+        _, done = env.step(action) #reward = score difference after taking the action.
 
         # Render the new state of the game
         if (not done) :

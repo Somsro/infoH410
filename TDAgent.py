@@ -72,7 +72,7 @@ class NTupleNetwork:
     """
     N-tuple network value function approximator for 2048.
 
-    Uses 6 base 6-tuple patterns, each expanded via 8-way board symmetry
+    Uses 4 base 6-tuple patterns, each expanded via 8-way board symmetry
     (4 rotations x horizontal reflection), yielding up to 48 unique lookup
     tables. Each cell holds a log2-encoded tile value in [0, NUM_VALUES].
 
@@ -216,6 +216,7 @@ class TDAgent:
         self.epsilon_decay = epsilon_decay
 
         self.episode_final_scores = []
+        self.episode_durations = []
 
     def select_action(self, env):
         valid_actions = env.get_valid_actions()

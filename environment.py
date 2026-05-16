@@ -1,5 +1,6 @@
 import numpy as np
 from board2048_ext import Board
+from time import time
 # from your_env_lib import ParallelEnv   # décommentez selon votre implémentation de ParallelEnv
 
 class Environment:
@@ -9,9 +10,13 @@ class Environment:
         self.board = Board()
         self.agent = "player"
         self.possible_agents = [self.agent]
+        self.start_time = time()
 
     def clone(self):
         new_env = Environment()
+        new_env.start_time = self.start_time
+        new_env.agent = self.agent
+        new_env.possible_agents = self.possible_agents
         new_env.board = self.board.clone()
         return new_env
     
@@ -27,6 +32,7 @@ class Environment:
         self.done = False
         self.truncated = False
         self.score = 0
+        self.start_time = time()
         if options :
             self.render("New game! Make your first move.")
         return observation
@@ -155,6 +161,9 @@ class Environment:
     
     def place_tile(self, cell, log_value):
         self.board.force_place_tile(cell, log_value)
+
+    def get_duration(self):
+        return time() - self.start_time
 
     def render(self, message: str = "", over: bool = False) -> None:
         representation = [2**self.board.to_list()[i] if self.board.to_list()[i] > 0 else "   ." for i in range(16)]
