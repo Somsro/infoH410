@@ -52,6 +52,9 @@ class DQN(nn.Module):
     
 class DQNAgent:
     def __init__(self, env, lr=DQN_LR, gamma=DQN_GAMMA, eps_start=DQN_EPS_START, eps_end=DQN_EPS_END, eps_decay=DQN_EPS_DECAY, tau=DQN_TAU):
+        
+        # We initialize the DQN agent with the given hyperparameters and create the policy and target networks. The target network is initialized with the same weights as the policy network and will be updated periodically during training. 
+        # We also set up the optimizer and replay memory for experience replay.
         n_actions = env.action_space.n
         self.model = DQN(n_actions)
         self.device = torch.device(
@@ -91,6 +94,9 @@ class DQNAgent:
             eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(-1. * self.step_count / self.eps_decay)
         self.step_count += 1
         
+        # With probability eps_threshold, we select a random action from the valid actions. Otherwise, we select the action with the highest Q-value among the valid actions. 
+        # To do this, we compute the Q-values for all actions using the policy network, then we add a mask to set the Q-values of invalid actions to -Inf, so that they won't be selected by max(1).values. 
+        # Finally, we take the action with the highest Q-value among the valid actions.
         if sample > eps_threshold:
 
             with torch.no_grad():
@@ -215,7 +221,8 @@ def train_dqn(env):
         
 
         for t in count():
-
+            
+            # We select an action using the agent's policy, restricted to valid moves. We then take that action in the environment and observe the next state and reward. 
             valid_actions = [a for a in range(4) if env.unwrapped.board.is_move_valid(a)]
             action = agent.select_action(state, valid_actions)
             next_observation, reward, terminated, truncated = env.step(action.item())
@@ -223,6 +230,7 @@ def train_dqn(env):
             reward_tensor = torch.tensor([reward], device=agent.device)
             done = terminated or truncated
 
+            # We check if the episode has terminated or truncated (due to time limit).
             if terminated:
                 next_state = None
 

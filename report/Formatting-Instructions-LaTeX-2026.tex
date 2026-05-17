@@ -166,7 +166,7 @@
     This report compares three AI techniques for the game 2048: Expectimax (planning-based), Deep Q-Learning (deep learning) and an n-tuple network TD learning agent.
     Performances are evaluated based on the final score reached using 100 runs of each agent with statistical significant tests to assess their differences.
     The results demonstrate that the Expectimax agent fits well in the need of immediate performance, while the TD Learning agent better suits scenarios where pre training is possible.
-    Lastly, the DQN agent requires very long training sessions to reach a performance comparable to TD learning agent but offers the potential for more robust performance in complex scenarios.
+    Lastly, the DQN agent requires very long training sessions to reach a performance comparable to TD learning agent.
 
 
 \end{abstract}
@@ -253,9 +253,9 @@ The pruning method implemented is a simple threshold-based pruning that discards
 
 \subsection{Approach: Deep Q-Learning (DQN)}
 As mentionned before, the large state space of the game makes it infeasible to use a tabular representation of the state-action values as in classic Q-learning.
-Thus, Deep Q-Learning which approximates the action value function using a deep neural network is better suited for this task.
-Because of its neural network architecture, DQN can handle the high-dimensional state space effectively by learning a compact representation of the state space. \cite{chan_playing_2022}
-\textbf{Logic:} Approximate the action value function (Q-value) using a deep neural network to bypass the exhaustive exploration of the state space. \cite{noauthor_reinforcement_nodate}
+Thus, Deep Q-Learning\cite{noauthor_reinforcement_nodate} which approximates the action value function using a deep neural network is better suited for this task.
+Because of its neural network architecture\cite{chan_playing_2022}, DQN can handle the high-dimensional state space effectively by learning a compact representation of the state space.
+\textbf{Logic:} Approximate the action value function (Q-value) using a deep neural network to bypass the exhaustive exploration of the state space.
 The agent learns directly from experience via stochastic gradient descent on $(s, a, r, s')$ tuples, guided by a shaped reward system reflecting 2048 heuristics (tile merges, empty cells, monotonicity, and corner penalties). \\
 \textbf{Assumption:} The environment features a massive state space and stochastic transitions, rendering tabular methods infeasible. 
 While this model-free approach is good at capturing complex patterns, it assumes access to high computational power and massive amounts of training data (very long training sessions) to converge.
@@ -302,22 +302,21 @@ The value function is approximated using an N-tuple network composed of lookup t
     First of all, the metrics collected during the training of the DQN and TD learning agents are shown in the following figures. 
     The training of the DQN agent is shown in Fig:\ref{fig:dqn_training_metrics}, it trained for around 16k episodes and took around 10h to train on a GPU. 
     The model has been trained on Kaggle cloud service using the GPU T4x2 due to the long trainind session required.
-    \begin{figure}[h]
-        \centering
-        \includegraphics[width=\columnwidth]{images/dqn_learning_tracking_data.png}
-        \caption{Training metrics of the DQN learning agent. The first plot shows the average steps taken per episode, 
-        the second plot shows the average score per episode. Each plots also includes mean and standard deviation computed over last runs.}
-        \label{fig:dqn_training_metrics}
-    \end{figure}
+    \begin{figure}[h] 
+    \centering 
+    \includegraphics[width=\columnwidth]{images/dqn_learning_tracking_data.png} 
+    \caption{Training metrics of the DQN learning agent. The first plot shows the average steps taken per episode, the second plot shows the average score per episode. Each plot also includes the mean and standard deviation computed over the last runs.} 
+    \label{fig:dqn_training_metrics} 
+\end{figure} 
 
-    \noindent The training of the TD learning agent is shown in Fig:\ref{fig:td_training_metrics}, it trained for 50k episodes and took around 2500s to train on a CPU (i9-14900K).
-    \begin{figure}[h]
-        \centering
-        \includegraphics[width=\columnwidth]{images/td_learning_tracking_data.png}
-        \caption{Training metrics of the TD learning agent. The first plot shows the average steps taken per episode, 
-        the second plot shows the average score per episode. Each plots also includes mean and standard deviation computed over last runs.}
-        \label{fig:td_training_metrics}
-    \end{figure}
+\noindent The training of the TD learning agent is shown in Fig.~\ref{fig:td_training_metrics}. It trained for 50k episodes and took around 2500s to train on a CPU (i9-14900K). 
+
+\begin{figure}[h] 
+    \centering 
+    \includegraphics[width=\columnwidth]{images/td_learning_tracking_data.png} 
+    \caption{Training metrics of the TD learning agent. The first plot shows the average steps taken per episode, the second plot shows the average score per episode. Each plot also includes the mean and standard deviation computed over the last runs.} 
+    \label{fig:td_training_metrics} 
+\end{figure}
 
     \noindent The TD learning agent reached a mean score of around 2000 at the end of the training while the DQN agent reached a mean score of less than 1000 even though it trained for much longer.
     This can be explained by the fact that the DQN agent is more complex due to the convolutional neural network used to approximate the Q-values, thus it requires more data and more training time to converge.
