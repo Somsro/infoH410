@@ -1,17 +1,10 @@
 
 import random
-# import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
 from collections import namedtuple, deque
-# from IPython import display
-# import matplotlib
 
 
-
-# is_ipython = 'inline' in matplotlib.get_backend()
-# if is_ipython:
-#     from IPython import display
 
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward', 'next_valid_mask'))
@@ -32,35 +25,6 @@ class ReplayMemory(object):
     def __len__(self):
         return len(self.memory)
     
-
-
-# episode_durations = []
-
-
-# def plot_durations(show_result=False):
-#     plt.figure(1)
-#     durations_t = torch.tensor(episode_durations, dtype=torch.float)
-#     if show_result:
-#         plt.title('Result')
-#     else:
-#         plt.clf()
-#         plt.title('Training...')
-#     plt.xlabel('Episode')
-#     plt.ylabel('Duration')
-#     plt.plot(durations_t.numpy())
-#     # Take 100 episode averages and plot them too
-#     if len(durations_t) >= 100:
-#         means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
-#         means = torch.cat((torch.zeros(99), means))
-#         plt.plot(means.numpy())
-
-#     plt.pause(0.001)  # pause a bit so that plots are updated
-#     if is_ipython:
-#         if not show_result:
-#             display.display(plt.gcf())
-#             display.clear_output(wait=True)
-#         else:
-#             display.display(plt.gcf())
 
 
 # In 2048, the state is represented as a 4x4 grid of integers, where each integer represents the exponent of 2 for the tile value (0 for empty, 1 for 2, 2 for 4, ..., up to 15 for 32768). 

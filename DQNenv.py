@@ -107,8 +107,7 @@ class Env2048(gym.Env):
     def get_step_count(self):
         return self.step_count
 
-    # Finally, we add a render function to visualize the current state of the board. This function prints the board in a human-readable format, showing the value of each tile (or a dot for empty tiles). 
-    # It also displays a message if provided and indicates that the environment is waiting for the next agent move.
+    # Finally, we add a render function to visualize the current state of the board. This function prints the board in a human-readable format, showing the value of each tile (or a dot for empty tiles).
     def render(self, message: str = "", over: bool = False) -> None:
         representation = [2**self.board.to_list()[i] if self.board.to_list()[i] > 0 else "   ." for i in range(16)]
         for i in range(4):
