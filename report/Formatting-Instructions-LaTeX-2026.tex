@@ -360,6 +360,9 @@ The value function is approximated using an N-tuple network composed of lookup t
         \label{tab:time_stats}
     \end{table}
 
+    These results show that the Expectimax and TD learning agents have similar performance in terms of score, but they are both significantly better than the DQN agent.
+    However, the Expectimax agent is much slower than the other two agents because of heavier computations during inference phase, causing it to be a significant disadvantage in real-time applications or when computational resources are limited.
+
     \subsection{Statistical comparisons} \label{sb:statistical_comparisons}
     Table \ref{tab:stat_tests} presents the results of the statistical tests performed to compare the performance of the three agents based on their scores over 100 runs.
     The tests performed are the Wilcoxon signed-rank test and the Student's t-test. 
@@ -387,6 +390,8 @@ The value function is approximated using an N-tuple network composed of lookup t
         \caption{Statistical comparison of agent performances (Wilcoxon and Student's t based on scores) over 100 runs.}
         \label{tab:stat_tests}
     \end{table}
+
+These statistical tests support the  previous observations that the Expectimax and TD learning agents have similar performance in terms of score (the p-value is more than 0.05), but they are both significantly better than the DQN agent.
 
 \section{Conclusion}
     As seen in the section \textit{Training metrics}\ref{sb:training_metrics}, the DQN agent requires a very long training session to reach a mean score equivalent to the TD learning agent. 
