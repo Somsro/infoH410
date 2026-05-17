@@ -13,6 +13,7 @@ class Environment:
         self.step_count = 0
 
     def clone(self):
+        """ Creates a copy of the environment used in TD learning and Expectimax agents to select actions. """
         new_env = Environment()
         new_env.start_time = self.start_time
         new_env.agent = self.agent
@@ -28,6 +29,7 @@ class Environment:
         return len(self.get_valid_actions()) == 0
 
     def reset(self, options=None):
+        """ Resets the environment at the start of a new episode. """
         self.board = Board()
         observation = np.array(self.board.to_list(), dtype=np.int64)
         self.done = False
@@ -66,44 +68,32 @@ class Environment:
             )
             return score
         else:
-            return sum((2**v if v > 0 else 0) for v in self.board.to_list())
+            return sum((2**v if v > 0 else 0) for v in self.board.to_list()) #The score for DQL and TD Learning agents is the sum of all tiles on the board.
     
     def get_valid_actions(self):
+        """ Returns a list of valid actions (0: up, 1: right, 2: down, 3: left) based on the current board state. """
         return [d for d in range(4) if self.board.is_move_valid(d)]
 
     def get_empty_count(self):
+        """ Returns the number of empty cells on the board. """
         return int(self.board.get_emptyCount())
     
     def get_empty_cells(self):
+        """ Returns a list of empty cell indices on the board. """
         return self.board.get_empty_cells()
 
     def get_max_log_tile(self):
+        """ Returns the logarithm base 2 of the maximum tile value on the board. """
         return int(self.board.get_max_logTile())
 
     def is_max_corner(self):
+        """ Returns True if the maximum tile is in a corner, False otherwise. """
         return bool(self.board.is_max_corner())
-    
-    def calculate_reward(self, prev_empty_count, curr_empty_count, prev_max_log_tile, curr_max_log_tile, prev_valid_moves_count, curr_valid_moves_count, is_max_corner):
-        reward = 0.0
-
-        # Reward for creating empty spaces and higher tiles:
-        reward += (curr_empty_count - prev_empty_count) * 5.0  # Reward 5 for each empty space created
-        reward += (curr_max_log_tile - prev_max_log_tile) * 5.0  # Reward 2*(difference in log tile values) for creating higher tiles
-
-        # Reward for increasing the number of valid moves:
-        if curr_valid_moves_count > prev_valid_moves_count:
-            reward += 1.0
-        elif curr_valid_moves_count < prev_valid_moves_count:
-            reward -= 2.0
-
-        # Reward for keeping the maximum tile in a corner:
-        if is_max_corner:
-            reward += 5.0
-
-        return reward
     
     # Logic functions
     def get_state(self, agent):
+        """ Was designed to return different state representations for different agents (especially for qlearners), 
+        but in this implementation, all agents use the same state representation. """
         agent_type = agent.agent_type
         
         if agent_type == "expectimax":
@@ -116,23 +106,26 @@ class Environment:
             raise ValueError(f"Unknown agent type: {agent_type}")
 
     def step(self, action: int):
+        """ Excecute the action on the board and place a new tile."""
         merge_value = self.board.sweep(int(action))
         terminated = False
         if merge_value >= 0:
             self.board.place_tile()
             self.get_valid_actions()
-            terminated = self.get_valid_actions() == []
+            terminated = self.get_valid_actions() == [] # If no valid actions are left, the game is over
             self.step_count += 1
 
         self.done = terminated
         return merge_value, terminated
     
     def simple_step(self, action: int):
+        """ Executes the action on the board without placing a new tile. Used for TD learning simulations. """
         return self.board.sweep(int(action))
     
     def place_tile(self, cell, log_value):
         self.board.force_place_tile(cell, log_value)
 
+    # Statistics measurements
     def get_duration(self):
         return time() - self.start_time
     

@@ -176,7 +176,7 @@ class TDAgent:
         for action in valid_actions: # Evaluate the after-state for each valid action to choose the best one
             new_env = env.clone()
             reward  = float(new_env.simple_step(action)) #Make sweep but don't add random tile yet.
-            value   = reward + self.network.evaluate(new_env.board.to_list()) #TD agent uses the board.to_list() as state
+            value   = reward + self.network.evaluate(new_env.board.to_list()) #TD agent uses the board.to_list() as²² state
             if value > best_value:
                 best_value  = value
                 best_action = action
