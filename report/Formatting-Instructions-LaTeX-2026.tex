@@ -19,6 +19,9 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 
+\usepackage{booktabs}
+\usepackage{adjustbox}
+
 %
 % These are are recommended to typeset listings but not required. See the subsubsection on listing. Remove this block if you don't have listings in your paper.
 \usepackage{newfloat}
@@ -284,6 +287,91 @@ The value function is approximated using an N-tuple network composed of lookup t
 \Return trained agent
 \end{algorithmic}
 \end{algorithm}
+
+
+\section{Experimentations}
+    \subsection{Training metrics}
+    Fig:\ref{fig:dqn_training_metrics} over 16k episodes of training, and took around 10(?) hours to train on a GPU. %% TODO change this
+    \begin{figure}[h]
+        \centering
+        \includegraphics[width=\columnwidth]{images/dqn_learning_tracking_data.png}
+        \caption{Training metrics of the DQN learning agent. The first plot shows the average steps taken per episode, 
+        the second plot shows the average score per episode. Each plots also includes mean and standard deviation computed over last runs.}
+        \label{fig:dqn_training_metrics}
+    \end{figure}
+
+    \noindent Fig:\ref{fig:td_training_metrics} 50k episodes of training, and took over 2500s to train on a CPU.
+    \begin{figure}[h]
+        \centering
+        \includegraphics[width=\columnwidth]{images/td_learning_tracking_data.png}
+        \caption{Training metrics of the TD learning agent. The first plot shows the average steps taken per episode, 
+        the second plot shows the average score per episode. Each plots also includes mean and standard deviation computed over last runs.}
+        \label{fig:td_training_metrics}
+    \end{figure}
+
+    \subsection{Evaluation metrics}
+
+    \begin{table}[h]
+        \centering
+        \caption{Score statistics of the three agents over 100 runs.}
+        \label{tab:score_stats}
+        \small
+        \begin{adjustbox}{max width=\columnwidth}
+        \begin{tabular}{l l r r r r r}
+        \toprule
+        \textbf{Approach} & \textbf{Mean} & \textbf{Std} & \textbf{Min} & \textbf{Max} \\
+        \midrule
+        Expectimax       & 2721 & 1171 & 632 & 6180  \\
+        Deep Q-Learning  & 1216 &  469 & 250 & 2078  \\
+        N-tuple network  & 2503 &  992 & 638 & 6034 \\
+        \bottomrule
+        \end{tabular}
+        \end{adjustbox}
+    \end{table}
+
+    \begin{table}[h]
+        \centering
+        \caption{Time statistics of the three agents over 100 runs.}
+        \label{tab:time_stats}
+        \small
+        \begin{adjustbox}{max width=\columnwidth}
+        \begin{tabular}{l l r r r r r}
+        \toprule
+        \textbf{Approach} & \textbf{Mean(s)} & \textbf{Std(s)} & \textbf{Min(s)} & \textbf{Max(s)} \\
+        \midrule
+        Expectimax       & 18.36 & 6.29 & 6.51 & 35.66  \\
+        Deep Q-Learning  & 0.5144 &  0.1966 & 0.1126 & 0.8918  \\
+        N-tuple network  & 0.0634 &  0.0247 & 0.0163 & 0.1522 \\
+        \bottomrule
+        \end{tabular}
+        \end{adjustbox}
+    \end{table}
+
+    \subsection{Statistical comparisons}
+    \begin{table}[h]
+        \centering
+        \caption{Statistical comparison of agent performances (Wilcoxon and Student's t based on scores) over 100 runs.}
+        \label{tab:stat_tests}
+        \small
+        \begin{adjustbox}{max width=\columnwidth}
+        \begin{tabular}{l l r r r r}
+        \toprule
+        \textbf{1st Approach} & \textbf{2nd Approach} 
+            & \multicolumn{2}{c}{\textbf{Wilcoxon}} 
+            & \multicolumn{2}{c}{\textbf{Student's t}} \\
+        \cmidrule(lr){3-4} \cmidrule(lr){5-6}
+        & & \textbf{Stat} & \textbf{p-value} & \textbf{Stat} & \textbf{p-value} \\
+        \midrule
+        Expectimax      & N-tuple network  & 5483 & 2.3e-01 & 1.41  & 1.6e-01 \\
+        Expectimax      & Deep Q-Learning  & 8828 & 8.6e-22 & 11.86 & 1.8e-22 \\
+        N-tuple network & Deep Q-Learning  & 8990 & 1.8e-22 & 11.66 & 1.9e-22 \\
+        \bottomrule
+        \end{tabular}
+        \end{adjustbox}
+    \end{table}
+
+\section{Conclusion}
+    %% TODO: Talk about expectimax slower but no training required, expecimax equivalent to n-tuple according to stats, DQN bad in every aspects (learning and testing)
 
 
 
