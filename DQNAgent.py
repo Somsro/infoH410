@@ -79,6 +79,7 @@ class DQNAgent:
 
 
     def select_action(self, state, valid_actions):
+        """Choose an action with epsilon-greedy exploration (restricted to valid moves)."""
 
         if len(valid_actions) == 0:
             return torch.tensor([[0]], device=self.device, dtype=torch.long)
@@ -171,10 +172,14 @@ class DQNAgent:
         self.optimizer.step()
 
     def load(self, path):
+        """Load a saved network checkpoint from disk."""
+
         checkpoint = torch.load(path, map_location=self.device, weights_only=False)
         self.policy_net.load_state_dict(checkpoint['model_state_dict'])
 
     def save(self, path, env, episode):
+        """Save the current training state, including model weights and optimizer."""
+
         checkpoint = {
             'episode': episode,
             'steps_done': env.get_step_count(),
@@ -185,6 +190,9 @@ class DQNAgent:
 
 
 def train_dqn(env):
+    """Train a DQN agent for NUM_EPISODES (with time limit)
+    return the trained agent."""
+
     agent = DQNAgent(env)
 
     pbar = tqdm(range(NUM_EPISODES), desc="Training Episodes")

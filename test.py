@@ -8,6 +8,8 @@ from DQNenv import Env2048
 from DQNAgent import DQNAgent
 
 def test_loop(agent, agent_type, env) -> None:
+    """Run the evaluation loop for one agent and record score, duration, and step count."""
+
     header = f"{'Game':<10} | {'Score':<12} | {'Duration (s)':<12} | {'Steps':<6}\n"
     print(header + "-" * len(header))
 
@@ -35,6 +37,7 @@ def test_loop(agent, agent_type, env) -> None:
 
 
 def main(agent_type) -> None:
+    """Load a trained agent for the requested type and run the test loop."""
 
     if agent_type == "td":
         env = Environment()

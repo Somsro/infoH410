@@ -8,7 +8,9 @@ from DQNenv import Env2048
 from DQNAgent import DQNAgent, train_dqn
 
 def main(agent_type) -> None:
+    """Load or train the requested agent, then play one rendered game."""
 
+#We either load a pre-trained agent or train a new one based on the specified agent type.
     if agent_type == "expectimax":
         env = Environment()
         agent = ExpectimaxAgent(depth=EXPECTIMAX_DEPTH)

@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def plot_tracking(episode_step_counts, episode_final_scores, windows_count=20, filename="tracking_data.png"):
+    """Plot episode length and score (with average + standard deviation)."""
+
     fig, axs = plt.subplots(2, 1, figsize=(10, 8))
     window = len(episode_final_scores) // windows_count
 
@@ -64,11 +66,15 @@ def plot_tracking(episode_step_counts, episode_final_scores, windows_count=20, f
     plt.show()
 
 def save_tracking(episode_step_counts, episode_durations, episode_final_scores, filename="tracking_data.npz"):
+    """transform raw training histories to a compressed NPZ file."""
+
     filename = os.path.join("tracking", filename)
     np.savez(filename, episode_step_counts=episode_step_counts, episode_durations=episode_durations, episode_final_scores=episode_final_scores)
     print(f"Tracking data saved to {filename}")
 
 def compute_statistics(episode_step_counts, episode_durations, episode_final_scores):
+    """Compute mean, std, min and max statistics for the tracked training metrics."""
+
     stats = {
         "step_counts": {
             "mean": np.mean(episode_step_counts),
@@ -92,6 +98,8 @@ def compute_statistics(episode_step_counts, episode_durations, episode_final_sco
     return stats
 
 def test_statistics(agent, filename="testing_statistics.txt"):
+    """Saving summary statistics for a tested agent on testing_statistics.txt."""
+
     stats = compute_statistics(agent.episode_step_counts, agent.episode_durations, agent.episode_final_scores)
     filename = os.path.join("tracking", filename)
     with open(filename, "w") as f:

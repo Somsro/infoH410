@@ -292,7 +292,7 @@ The value function is approximated using an N-tuple network composed of lookup t
 \section{Experimentations}
     \subsection{Training metrics}
     Fig:\ref{fig:dqn_training_metrics} over 16k episodes of training, and took around 10(?) hours to train on a GPU. %% TODO change this
-    \begin{figure}[h]
+    \begin{figure}[H]
         \centering
         \includegraphics[width=\columnwidth]{images/dqn_learning_tracking_data.png}
         \caption{Training metrics of the DQN learning agent. The first plot shows the average steps taken per episode, 
@@ -301,7 +301,7 @@ The value function is approximated using an N-tuple network composed of lookup t
     \end{figure}
 
     \noindent Fig:\ref{fig:td_training_metrics} 50k episodes of training, and took over 2500s to train on a CPU.
-    \begin{figure}[h]
+    \begin{figure}[H]
         \centering
         \includegraphics[width=\columnwidth]{images/td_learning_tracking_data.png}
         \caption{Training metrics of the TD learning agent. The first plot shows the average steps taken per episode, 
@@ -311,7 +311,7 @@ The value function is approximated using an N-tuple network composed of lookup t
 
     \subsection{Evaluation metrics}
 
-    \begin{table}[h]
+    \begin{table}[H]
         \centering
         \caption{Score statistics of the three agents over 100 runs.}
         \label{tab:score_stats}
@@ -329,7 +329,7 @@ The value function is approximated using an N-tuple network composed of lookup t
         \end{adjustbox}
     \end{table}
 
-    \begin{table}[h]
+    \begin{table}[H]
         \centering
         \caption{Time statistics of the three agents over 100 runs.}
         \label{tab:time_stats}
@@ -348,7 +348,7 @@ The value function is approximated using an N-tuple network composed of lookup t
     \end{table}
 
     \subsection{Statistical comparisons}
-    \begin{table}[h]
+    \begin{table}[H]
         \centering
         \caption{Statistical comparison of agent performances (Wilcoxon and Student's t based on scores) over 100 runs.}
         \label{tab:stat_tests}

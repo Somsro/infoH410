@@ -46,7 +46,9 @@ class NTupleNetwork:
         self.luts = [np.zeros(lut_size, dtype=np.float32) for _ in self.patterns]
 
         if self.dynamic_lr:
+            # Track how often each LUT entry is visited so we can reduce learning rate over time.
             self.counts     = [np.zeros(lut_size, dtype=np.uint32) for _ in self.patterns]
+            # Do not let the per-entry learning rate decay too fast on the first few updates. (avoid that first visit having a huge impact on the weights)
             self.MIN_VISITS = 100
 
     # Symmetry helpers
@@ -100,7 +102,7 @@ class NTupleNetwork:
         total = 0.0
         for i, (lut, p) in enumerate(zip(self.luts, self.patterns)):
             idx = self._index(board, p)
-            if self.dynamic_lr:
+            if self.dynamic_lr: #Update learning rate in case of dynamic lr
                 self.counts[i][idx] += 1
                 lr = max(1.0 / max(self.counts[i][idx], self.MIN_VISITS),
                         self.alpha_floor)
@@ -110,7 +112,7 @@ class NTupleNetwork:
             total += float(lut[idx])
         return total
 
-    # Persistence
+    # Analysis utility
 
     def save(self, filepath):
         filepath = Path(filepath).with_suffix('')
@@ -158,19 +160,23 @@ class TDAgent:
         self.episode_step_counts = []
 
     def select_action(self, env):
+        """Choose a move with epsilon-greedy exploration over after-state values.
+        (after-states are the board configurations immediately after the agent's move, without the random tile added yet)
+        return int action index in [0, 3] or None if no valid moves."""
+
         valid_actions = env.get_valid_actions()
         if not valid_actions:
             return None
 
-        if np.random.random() < self.epsilon:
+        if np.random.random() < self.epsilon: # Explore: choose a random valid action
             return np.random.choice(valid_actions)
 
         best_action = valid_actions[0]
         best_value  = -float('inf')
-        for action in valid_actions:
+        for action in valid_actions: # Evaluate the after-state for each valid action to choose the best one
             new_env = env.clone()
-            reward  = float(new_env.simple_step(action))
-            value   = reward + self.network.evaluate(new_env.board.to_list())
+            reward  = float(new_env.simple_step(action)) #Make sweep but don't add random tile yet.
+            value   = reward + self.network.evaluate(new_env.board.to_list()) #TD agent uses the board.to_list() as state
             if value > best_value:
                 best_value  = value
                 best_action = action
@@ -197,6 +203,7 @@ class TDAgent:
             td_error = float(reward) - v_prev   # v_next = 0 at terminal
         else:
             v_next   = self.network.evaluate(new_env.board.to_list())
+            #Gamma = 1 so future states are as much considered as immediate reward.
             td_error = float(reward) + v_next - v_prev
 
         self.network.update_weights(env.board.to_list(), td_error)
@@ -208,25 +215,34 @@ class TDAgent:
         path: list of (after_state_list, reward, done) in forward order.
         """
         target = 0.0
+        #Recursive update : V(s) += alpha * [r + V(s') - V(s)] where s' is the next state in the episode path.
         for board_list, reward, done in reversed(path[:-1]):
             v_current  = self.network.evaluate(board_list)
             td_error   = target - v_current
             target     = float(reward) + self.network.update_weights(board_list, td_error)
 
     def decay_epsilon(self):
+        """Apply exponential decay to the exploration rate if it's above the minimum."""
+
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
 
     # Persistence
 
     def save(self, filepath):
+        """Save the learned NTuple network."""
+
         filepath = Path(filepath)
         filepath.parent.mkdir(parents=True, exist_ok=True)
         self.network.save(filepath)
 
     def load(self, filepath):
+        """Load the NTuple network."""
+
         self.network.load(filepath)
 
 def train_td(nb_episodes) -> TDAgent:
+    """Train a TD(0) agent for a fixed number of episodes given in arg."""
+
     agent = TDAgent(
         learning_rate=TD_LEARNING_RATE,
         epsilon=1.0,
