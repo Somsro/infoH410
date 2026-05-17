@@ -99,7 +99,7 @@
 \author{
     %Authors
     % All authors must be in the same font size and format.
-    Written by Denis Legue (000513162), Robin Marchand, Gabriel, Monwar Mahtab Hawlader (000514679)
+    Written by Denis Legue (000513162), Robin Marchand (000539297), Fallik Gabriel (000566910), Monwar Mahtab Hawlader (000514679)
 }
 \affiliations{
     %Afiliations
@@ -163,6 +163,11 @@
 
 \begin{abstract}
 
+    In this report, the performance of three different AI techniques on the game 2048 is compared. 
+    The three techniques are Expectimax, Deep Q-Learning and an n-tuple network TD learning agent.
+    The performance of each approach is evaluated based on the final score reached using 100 runs of each agent.
+    Statistical tests are also performed to compare the performance of the agents and to determine if the differences observed are statistically significant.
+    Computational cost of each approach is also mentionned to better understand the trade-offs between planning and learning.
 
 \end{abstract}
 
@@ -180,8 +185,8 @@ possible directions: up, down, left and right.
 Each turn, a new tile with a value of 2 or 4 appears in an empty spot on the board. The player wins by creating a tile with the value of 2048, 
 but can continue playing to reach higher values. The game ends when there are no more valid moves available.\\
 The randomness of the games makes it a good candidate for testing the performance of different AI techniques.  
-Three agents will be compared; Deep qleaner, Expectimax and an n-tuple network TD learning agent.
-The goal will be to evaluate their performance (the final score reached) but also the computational cost to better understand the trade-offs between planning and leanred polcies.
+Three agents will be compared; Deep Q-Learning, Expectimax and an n-tuple network TD learning agent.
+The goal will be to evaluate their performance (the final score reached) but also the computational cost to better understand the trade-offs between planning and learned policies.
 
 \section{Problem Formulation}
 The game 2048 is a sequential decision making problem with uncertainty.
@@ -247,7 +252,10 @@ Implementing pruning can lead to significant reductions in the number of nodes e
 The pruning method implemented is a simple threshold-based pruning that discards branches of the search tree that have low chance of happening.
 
 \subsection{Approach: Deep Q-Learning (DQN)}
-\textbf{Logic:} Approximate the action value function (Q-value) using a deep neural network to bypass the exhaustive exploration of the state space. 
+As mentionned before, the large state space of the game makes it infeasible to use a tabular representation of the state-action values as in classic Q-learning.
+Thus, Deep Q-Learning which approximates the action value function using a deep neural network is better suited for this task.
+Because of its neural network architecture, DQN can handle the high-dimensional state space effectively by learning a compact representation of the state space. \cite{chan_playing_2022}
+\textbf{Logic:} Approximate the action value function (Q-value) using a deep neural network to bypass the exhaustive exploration of the state space. \cite{noauthor_reinforcement_nodate}
 The agent learns directly from experience via stochastic gradient descent on $(s, a, r, s')$ tuples, guided by a shaped reward system reflecting 2048 heuristics (tile merges, empty cells, monotonicity, and corner penalties). \\
 \textbf{Assumption:} The environment features a massive state space and stochastic transitions, rendering tabular methods infeasible. 
 While this model-free approach is good at capturing complex patterns, it assumes access to high computational power and massive amounts of training data (very long training sessions) to converge.
@@ -257,7 +265,7 @@ Temporal-Difference learning with value function approximation provides a lighte
 \textbf{Logic:} Instead of learning action values directly, this approach estimates the value of board after-states and updates this estimate by bootstrapping 
 from successor after-states. In this implementation, the after-states represent the move without placing a new tile yet in order to estimate the value function.
 An error signal is computed based on the difference between the current value estimate and the observed reward plus the value of the next after-state. 
-The value function is approximated using an N-tuple network composed of lookup tables defined over several tile patterns and their symmetric variants. 
+The value function is approximated using an N-tuple network composed of lookup tables defined over several tile patterns and their symmetric variants. \cite{guei_moporgictdl2048-demo_2026}
 
 \begin{algorithm}[h]
 \caption{Training procedure of the TD agent}
@@ -290,9 +298,11 @@ The value function is approximated using an N-tuple network composed of lookup t
 
 
 \section{Experimentations}
-    \subsection{Training metrics}
-    Fig:\ref{fig:dqn_training_metrics} over 16k episodes of training, and took around 10(?) hours to train on a GPU. %% TODO change this
-    \begin{figure}[H]
+    \subsection{Training metrics} \label{sb:training_metrics}
+    First of all, the metrics collected during the training of the DQN and TD learning agents are shown in the following figures. 
+    The training of the DQN agent is shown in Fig:\ref{fig:dqn_training_metrics}, it trained for around 16k episodes and took around 10h to train on a GPU. 
+    The model has been trained on Kaggle cloud service using the GPU T4x2 due to the long trainind session required.
+    \begin{figure}[h]
         \centering
         \includegraphics[width=\columnwidth]{images/dqn_learning_tracking_data.png}
         \caption{Training metrics of the DQN learning agent. The first plot shows the average steps taken per episode, 
@@ -300,8 +310,8 @@ The value function is approximated using an N-tuple network composed of lookup t
         \label{fig:dqn_training_metrics}
     \end{figure}
 
-    \noindent Fig:\ref{fig:td_training_metrics} 50k episodes of training, and took over 2500s to train on a CPU.
-    \begin{figure}[H]
+    \noindent The training of the TD learning agent is shown in Fig:\ref{fig:td_training_metrics}, it trained for 50k episodes and took around 2500s to train on a CPU (i9-14900K).
+    \begin{figure}[h]
         \centering
         \includegraphics[width=\columnwidth]{images/td_learning_tracking_data.png}
         \caption{Training metrics of the TD learning agent. The first plot shows the average steps taken per episode, 
@@ -309,15 +319,17 @@ The value function is approximated using an N-tuple network composed of lookup t
         \label{fig:td_training_metrics}
     \end{figure}
 
-    \subsection{Evaluation metrics}
+    \noindent The TD learning agent reached a mean score of around 2000 at the end of the training while the DQN agent reached a mean score of less than 1000 even though it trained for much longer.
+    This can be explained by the fact that the DQN agent is more complex due to the convolutional neural network used to approximate the Q-values, thus it requires more data and more training time to converge.
 
+    \subsection{Evaluation metrics} \label{sb:evaluation_metrics}
+    The Table \ref{tab:score_stats} present the score statistics of the three agents over 100 runs, including the mean, standard deviation, minimum and maximum scores achieved. 
+    While the Table \ref{tab:time_stats} presents the time statistics of the three agents over 100 runs, including the mean, standard deviation, minimum and maximum time taken to complete a game.
     \begin{table}[H]
         \centering
-        \caption{Score statistics of the three agents over 100 runs.}
-        \label{tab:score_stats}
         \small
         \begin{adjustbox}{max width=\columnwidth}
-        \begin{tabular}{l l r r r r r}
+        \begin{tabular}{l r r r r}
         \toprule
         \textbf{Approach} & \textbf{Mean} & \textbf{Std} & \textbf{Min} & \textbf{Max} \\
         \midrule
@@ -327,31 +339,36 @@ The value function is approximated using an N-tuple network composed of lookup t
         \bottomrule
         \end{tabular}
         \end{adjustbox}
+        \caption{Score statistics of the three agents over 100 runs.}
+        \label{tab:score_stats}
     \end{table}
 
     \begin{table}[H]
         \centering
-        \caption{Time statistics of the three agents over 100 runs.}
-        \label{tab:time_stats}
         \small
         \begin{adjustbox}{max width=\columnwidth}
-        \begin{tabular}{l l r r r r r}
+        \begin{tabular}{l r r r r}
         \toprule
         \textbf{Approach} & \textbf{Mean(s)} & \textbf{Std(s)} & \textbf{Min(s)} & \textbf{Max(s)} \\
         \midrule
-        Expectimax       & 18.36 & 6.29 & 6.51 & 35.66  \\
+        Expectimax       & 18.36  & 6.29 & 6.51 & 35.66  \\
         Deep Q-Learning  & 0.5144 &  0.1966 & 0.1126 & 0.8918  \\
         N-tuple network  & 0.0634 &  0.0247 & 0.0163 & 0.1522 \\
         \bottomrule
         \end{tabular}
         \end{adjustbox}
+        \caption{Time statistics of the three agents over 100 runs.}
+        \label{tab:time_stats}
     \end{table}
 
-    \subsection{Statistical comparisons}
+    \subsection{Statistical comparisons} \label{sb:statistical_comparisons}
+    Table \ref{tab:stat_tests} presents the results of the statistical tests performed to compare the performance of the three agents based on their scores over 100 runs.
+    The tests performed are the Wilcoxon signed-rank test and the Student's t-test. 
+    The student's t-test is assumes a normal distribution of the scores and is thus less robust in this context but it is still interesting to keep it as a secondary test to confirm the results of the Wilcoxon test.
+    A significant p-value (typically less than 0.05) indicates that there is a statistically significant difference between the two approaches being compared, 
+    while a non-significant p-value suggests that any observed difference could be due to random chance.
     \begin{table}[H]
         \centering
-        \caption{Statistical comparison of agent performances (Wilcoxon and Student's t based on scores) over 100 runs.}
-        \label{tab:stat_tests}
         \small
         \begin{adjustbox}{max width=\columnwidth}
         \begin{tabular}{l l r r r r}
@@ -368,11 +385,48 @@ The value function is approximated using an N-tuple network composed of lookup t
         \bottomrule
         \end{tabular}
         \end{adjustbox}
+        \caption{Statistical comparison of agent performances (Wilcoxon and Student's t based on scores) over 100 runs.}
+        \label{tab:stat_tests}
     \end{table}
 
 \section{Conclusion}
-    %% TODO: Talk about expectimax slower but no training required, expecimax equivalent to n-tuple according to stats, DQN bad in every aspects (learning and testing)
+    As seen in the section \textit{Training metrics}\ref{sb:training_metrics}, the DQN agent requires a very long training session to reach a mean score equivalent to the TD learning agent, 
+    however, regarding the training episodes, the DQN agent didn't perform worse compared to the TD learning agent when it was trained for the same number of episodes,
+    which suggests that the DQN agent isn't necessarily less sample efficient than the TD learning agent but it is more complex and thus requires more training time to converge.
 
+    While both DQN and TD learning agents need a large amount of training data to reach good performance, 
+    the Expectimax agent can reach a good performance without any training, which is a significant advantage in terms of computational cost and time.
+    However, the Expectimax agent is much slower than the other two agents during inference, 
+    which can be a significant disadvantage in real-time applications or when computational resources are limited.
+
+    Also, according to the sections \textit{Evaluation metrics}\ref{sb:evaluation_metrics} and \textit{Statistical comparisons}\ref{sb:statistical_comparisons}, the Expectimax and TD learning agents have similar performance in terms of score,
+    but they are both significantly better than the DQN agent. A huge training time for the DQN agent could improve it's performance but it is not guaranteed and it is not feasible for this project.
+
+    Based on these result, it is possible to conclude that the Expectimax agent is the best choice for this problem if looking for a good performance without the need for training, 
+    while the TD learning agent is a good choice if looking for a good performance with a reasonable training time.
+
+    \begin{table}[H]
+        \centering
+        \small
+        \begin{adjustbox}{max width=\columnwidth}
+        \begin{tabular}{l r r r}
+        \toprule
+        \textbf{Metric} & \textbf{Expectimax} & \textbf{DQN} & \textbf{TD Learning} \\
+        \midrule
+        Mean score       & Highest    & Bad          & Highest    \\
+        Execution time   & Highest    & Intermediate & Lowest     \\
+        Training time    & None       & Highest      & Acceptable \\
+        Robustness (std) & Equivalent & Equivalent   & Equivalent \\
+        \bottomrule
+        \end{tabular}
+        \end{adjustbox}
+        \caption{Approaches comparison summary.}
+        \label{tab:comparison_summary}
+    \end{table}
+
+    A hybrid approach that combines TD learning and Expectimax could be an interesting direction to explore in future work, 
+    where the TD learning agent could be used to learn a value function that can be used as an evaluation function for the Expectimax agent,
+    which could potentially improve the performance of the Expectimax agent while keeping a reasonable computational cost.
 
 
 
