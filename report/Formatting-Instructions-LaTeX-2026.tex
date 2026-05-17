@@ -210,17 +210,38 @@ testing the performance of different AI techniques.
 
 
 \section{Methodologies}
-Three agents will be compared; Deep Q-Learning, Expectimax and an n-tuple network TD(0) learning agent.
-The three methods have each their own field of application and are based on different principles.
-Expectimax is a planning-based approach, deep Q-Learning is a deep reinforcement learning method that learns action values from experience
+Three approaches will be implemented and compared; Expectimax, Deep Q-Learning and an n-tuple network TD learning agent.
+Each approach has its own field of application and is based on different principles.
+Expectimax is a search-based approach, deep Q-Learning is a deep reinforcement learning method that learns action values from experience
 meanwhile TD learning with function approximation is a lighter value-based alternative.  
 Comparing them on the same problem will allow us to better understand the trade-offs between 
 planning, learning, the computational cost as well as performance of each method.
-For each of the following approach, the states is encoded as a list of 16 integers, each representing the exponant $k$ such that the tile value in that cell is
+For reinforcement learning, a classic approach is to use a Q-learning algorithm with a tabular representation of the state-action values. 
+However, due to the large state space of the game, this approach is not feasible, in fact, 
+the number of possible board configurations is estimated to be around $12^{16}$, if we consider that the maximum tile value is 2048 (which is $2^{11}$).
+The following sections will describe how this issue is addressed in the case of the Deep Q-Learning and the TD learning agent.
+For each of those approaches, the state is encoded as a list of 16 integers, each representing the exponant $k$ such that the tile value in that cell is
 $2^k$. (For example, 16 is encoded as 4 since $2^4=16$ with the particularity that 0 represents an empty cell).
 The action space is the same for all agents and consists of the 4 possible moves: up, down, left and right encoded as integer values from 0 to 3.
 
 \subsection{Approach: Expectimax}
+Expectimax is a search algorithm that extends the minimax algorithm to handle randomness in the environment.
+\textbf{Logic:} The agent constructs a search tree where nodes alternate between decision nodes (agent's turn) and chance nodes (random tile placement).
+It evaluates the expected utility of actions by averaging over possible outcomes at chance nodes, using a given evaluation function to estimate the leaf nodes. \\
+\textbf{Evaluation Function:} Many heuristics exist to evaluate the board state, the implemented one is a combination of several features:
+\begin{itemize}
+    \item Raw score, which is the sum of the values of every tile on the board
+    \item Number of empty cells
+    \item Monotonicity, which measures how values are ordered on the board
+    \item Smoothness, which measures how similar neighboring tiles are
+    \item Merge potential, which estimates the possibility of merging tiles in the next moves
+    \item Corner bonus/penalty, which rewards/penalizes the presence/absence of the largest tile in a corner
+\end{itemize}
+\textbf{Depth and Computational Cost:} The depth of the search tree is a critical parameter that affects both performance and computational cost.
+A deeper tree allows for better foresight and potentially higher scores, but it also increases the number of nodes exponentially, leading to longer computation times.
+Tuning this parameter is essential to find a balance between performance and efficiency, especially given the stochastic nature of the game.
+Implementing pruning can lead to significant reductions in the number of nodes evaluated without sacrificing performances, thus considerably reducing the computational cost.
+The pruning method implemented is a simple threshold-based pruning that discards branches of the search tree that have low chance of happening.
 
 \subsection{Approach: Deep Q-Learning (DQN)}
 \textbf{Logic:} Approximate the action value function (Q-value) using a deep neural network to bypass the exhaustive exploration of the state space. 
@@ -229,8 +250,8 @@ The agent learns directly from experience via stochastic gradient descent on $(s
 While this model-free approach is good at capturing complex patterns, it assumes access to high computational power and massive amounts of training data (very long training sessions) to converge.
 
 \subsection{Approach: N-tuple network TD(0) learning agent}
-Temporal-Difference learning with value function approximation provides a lighter alternative to Deep Q-Learning. 
-Instead of learning action values directly, this approach estimates the value of board after-states and updates this estimate by bootstrapping 
+Temporal-Difference learning with value function approximation provides a lighter alternative to Deep Q-Learning. \\
+\textbf{Logic:} Instead of learning action values directly, this approach estimates the value of board after-states and updates this estimate by bootstrapping 
 from successor after-states. In this implementation, the after-states represent the move without placing a new tile yet in order to estimate the value function.
 An error signal is computed based on the difference between the current value estimate and the observed reward plus the value of the next after-state. 
 The value function is approximated using an N-tuple network composed of lookup tables defined over several tile patterns and their symmetric variants. 
